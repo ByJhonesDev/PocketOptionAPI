@@ -9,7 +9,7 @@
 
 ![Preview da API](pocketoption.png)
 
-## ✨ Destaques
+## ✨ Destaques 
 
 - 🔐 **Autenticação Segura**: Login Via SSID e Gerenciamento de Sessão Robusto
 - 💹 **Trading Automatizado**: Operações de Compra e Venda Programáticas
