@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Exceções Personalizadas
 # Descrição:
 # - Define exceções personalizadas para a API da PocketOption

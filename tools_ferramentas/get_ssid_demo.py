@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Automação de Login e Extração de SSID para Conta de Demonstração
 # Descrição:
 # - Automatiza o login na plataforma PocketOption e navega até a página de negociação demo.

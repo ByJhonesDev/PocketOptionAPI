@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: AsyncWebSocketClient
 # Descrição:
 # - Cliente WebSocket assíncrono para API da PocketOption

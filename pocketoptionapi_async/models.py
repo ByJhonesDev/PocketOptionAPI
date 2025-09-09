@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Modelos Pydantic (Python)
 # Descrição:
 # - Define modelos Pydantic (Python) para validação e segurança de tipos na API da PocketOption

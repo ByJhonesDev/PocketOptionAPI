@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Inicialização de WebDriver
 # Descrição:
 # - Inicializa e configura um WebDriver do Selenium para os navegadores Chrome ou Firefox.

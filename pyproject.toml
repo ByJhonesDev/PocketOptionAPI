@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pocketoptionapi"
 version = "2.0.0"
-description = "Async Python API não oficial para PocketOption (ByMyselfJhones)."
+description = "Async Python API não oficial para PocketOption (ByJhonesDev)."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
@@ -60,5 +60,5 @@ dependencies = [
 packages = ["pocketoptionapi_async"]
 
 [project.urls]
-Homepage = "https://github.com/ByJhones/PocketOptionAPI"
-"Bug Tracker" = "https://github.com/ByJhones/PocketOptionAPI/issues"
+Homepage = "https://github.com/ByJhonesDev/PocketOptionAPI"
+"Bug Tracker" = "https://github.com/ByJhonesDev/PocketOptionAPI/issues"

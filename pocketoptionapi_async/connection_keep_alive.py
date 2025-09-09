@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: ConnectionKeepAlive
 # Descrição:
 # - Gerenciador de conexão keep-alive assíncrono para API da PocketOption

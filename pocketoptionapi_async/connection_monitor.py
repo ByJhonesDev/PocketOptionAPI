@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: ConnectionMonitor
 # Descrição:
 # - Monitor avançado de conexão para API da PocketOption

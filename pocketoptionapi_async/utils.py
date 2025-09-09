@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Funções Utilitárias
 # Descrição:
 # - Fornece utilitários para a API da PocketOption

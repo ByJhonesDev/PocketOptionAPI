@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Configuração Geral
 # Descrição:
 # - Gerencia configurações para a API assíncrona da PocketOption

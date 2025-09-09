@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: Configurações e Constantes
 # Descrição:
 # - Define constantes para a API da PocketOption

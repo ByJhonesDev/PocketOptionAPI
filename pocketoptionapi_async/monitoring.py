@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: ErrorMonitor e HealthChecker
 # Descrição:
 # - Sistema avançado de monitoramento e tratamento de erros para API da PocketOption

@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones
+# Autor: ByJhonesDev
 # Função: AsyncPocketOptionClient com login por e-mail/senha (SSID Automaticamente Gerado)
 # Descrição:
 # - Cliente assíncrono para API da PocketOption
