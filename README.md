@@ -1,6 +1,6 @@
 # 🚀 PocketOption API
 
-[![GitHub](https://img.shields.io/badge/GitHub-ByJhones-blue?style=flat-square&logo=github)](https://github.com/ByJhones)
+[![GitHub](https://img.shields.io/badge/GitHub-ByJhonesDev-blue?style=flat-square&logo=github)](https://github.com/ByJhones)
 [![Telegram](https://img.shields.io/badge/Telegram-@traderjhonesofc-blue?style=flat-square&logo=telegram)](https://t.me/traderjhonesofc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/Python-3.12.7-blue?style=flat-square)](https://www.python.org)
@@ -27,12 +27,12 @@
 
 ### Via pip (Recomendado):
 ```bash
-pip install git+https://github.com/ByJhones/PocketOptionAPI.git
+pip install git+https://github.com/ByJhonesDev/PocketOptionAPI.git
 ```
 
 ### Para Desenvolvimento:
 ```bash
-git clone https://github.com/ByJhones/PocketOptionAPI.git
+git clone https://github.com/ByJhonesDev/PocketOptionAPI.git
 cd PocketOptionAPI
 pip install -e .
 ```
@@ -203,10 +203,10 @@ Este projeto é uma implementação não oficial e não possui vínculo com a Po
 ## 📞 Suporte
 
 - 💬 Telegram: [Trader Jhones](https://t.me/traderjhonesofc)
-- 🌐 Website: [ByMyselfJhones](https://github.com/ByJhones)
+- 🌐 Website: [ByJhonesDev](https://github.com/ByJhonesDev)
 
 ---
 
 <p align="center">
-  Desenvolvido com ❤️ por <a href="https://github.com/ByJhones">ByMyselfJhones</a>
+  Desenvolvido com ❤️ por <a href="https://github.com/ByJhonesDev">ByJhonesDev</a>
 </p>

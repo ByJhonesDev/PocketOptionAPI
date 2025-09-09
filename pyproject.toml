@@ -9,10 +9,10 @@ description = "Async Python API não oficial para PocketOption (ByMyselfJhones).
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "ByMyselfJhones", email = "jhonestradersoficial@gmail.com" }
+    { name = "ByMyselfJhones", email = "noffearrdeathproject@gmail.com" }
 ]
 maintainers = [
-    { name = "ByMyselfJhones", email = "jhonestradersoficial@gmail.com" }
+    { name = "ByMyselfJhones", email = "noffearrdeathproject@gmail.com" }
 ]
 requires-python = ">=3.8"
 classifiers = [
