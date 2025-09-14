@@ -39,42 +39,160 @@ pip install -e .
 
 ## 📖 Uso Básico
 
-```python
-from pocketoptionapi.client import PocketOptionClient
-from pocketoptionapi.config import Config
-import logging
+Esta seção demonstra como integrar a API de forma assíncrona para operações essenciais no PocketOption. A API é projetada para alta performance em cenários de trading automatizado, com suporte a reconexão automática, keep-alive e monitoramento de erros — ideal para bots de scalping em MT4/MT5 ou dashboards full-stack com chatbots de IA.
 
-# Configurar Logging (opcional)
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+### Instalação
 
-# Configuração da Sessão
-config = Config(
-    ssid='42["auth",{"session":"sua_sessao_aqui","isDemo":1,"uid":seu_uid_aqui,"platform":2}]',
-    is_demo=True  # True para conta demo, False para conta real
-)
+Instale via pip diretamente do repositório GitHub:
 
-# Inicializar Cliente
-client = PocketOptionClient(config)
-
-# Conectar
-client.connect()
-print("✅ Conectado!")
-
-# Consultar saldo
-saldo = client.get_balance()
-print(f"💰 Saldo: ${saldo:.2f}")
-
-# Realizar operação
-resultado = client.buy(
-    price=10,           # Valor em $
-    asset="EURUSD_OTC", # Par de moedas (note o sufixo _OTC)
-    direction="CALL",   # "CALL" (Alta) ou "PUT" (Baixa)
-    duration=1          # Expiração em minutos
-)
-
-if resultado["success"]:
-    print(f"✅ Operação Realizada: ID {resultado['order_id']}")
+```bash
+pip install git+https://github.com/ByJhonesDev/PocketOptionAPI.git
 ```
+
+### Inicialização e Conexão
+
+Crie um cliente assíncrono com SSID (session ID). Use Modo Demo para testes. A conexão é WebSocket com fallback de regiões e reconexão automática.
+
+```python
+import asyncio
+from pocketoptionapi_async.client import AsyncPocketOptionClient
+from pocketoptionapi_async.utils import format_session_id  # Para formatar SSID
+
+async def basic_connection():
+    # SSID de exemplo (demo). Substitua SSID que foi gerado com tools_ferramentas - SSID_DEMO.txt
+    session_id = "your_demo_session_id_here"  # Ou capture via login e-mail/senha
+    ssid = format_session_id(
+        session_id=session_id,
+        is_demo=True,  # True para Conta Demo, False para Conta Real
+        uid=0,  # Seu user ID
+        platform=1,  # 1=web, 3=mobile
+        is_fast_history=True  # Carregamento rápido de Histórico
+    )
+    
+    # Inicialize o Cliente com Keep-Alive e Reconexão
+    client = AsyncPocketOptionClient(
+        ssid=ssid,
+        is_demo=True,
+        persistent_connection=True,  # Ativa Keep-Alive
+        auto_reconnect=True,
+        enable_logging=True  # Logs detalhados para Debug
+    )
+    
+    # Conecte (Com Fallback de Regiões Automáticas)
+    success = await client.connect()
+    if success:
+        print("Conectado com Sucesso!")
+        # Adicione callback para eventos (Ex.: Atualizações de Saldo)
+        def on_balance_update(data):
+            print(f"Saldo Atualizado: {data.get('balance', 'N/A')}")
+        client.add_event_callback("balance_updated", on_balance_update)
+    else:
+        print("Falha na Conexão. Verifique SSID e a sua Rede.")
+    
+    # Desconecte ao Final
+    await client.disconnect()
+
+# Rode o exemplo
+asyncio.run(basic_connection())
+```
+
+**Dicas para Mercado Financeiro**: Integre com MT4/MT5 para sincronizar tempo do servidor (`await client.get_server_time()`) e evitar drifts em indicadores como RSI ou MACD.
+
+### Obter Saldo da Conta
+
+Recupere o Saldo Atual (Retorna objeto `Balance` com validação Pydantic).
+
+```python
+async def get_balance_example(client: AsyncPocketOptionClient):
+    try:
+        balance = await client.get_balance()
+        print(f"Saldo Conta Real: {balance.balance} {balance.currency} (Saldo Conta Demo: {balance.is_demo})")
+    except Exception as e:
+        print(f"Erro ao obter saldo: {e}")
+
+# Integre no loop principal
+await get_balance_example(client)
+```
+
+### Obter Dados de Candles | Velas (Histórico OHLC | GRÁFICO)
+
+Baixe candles | velas para análise técnica. Use timeframes em segundos (de `constants.TIMEFRAMES`).
+
+```python
+from pocketoptionapi_async.constants import ASSETS, TIMEFRAMES  # Assets e timeframes pré-definidos
+
+async def get_candles_example(client: AsyncPocketOptionClient):
+    asset = "EURUSD"  # Ou ASSETS["EURUSD_otc"] para OTC
+    timeframe = TIMEFRAMES["1m"]  # 60 segundos (M1)
+    count = 50  # Últimos 50 candles
+    
+    try:
+        candles = await client.get_candles(asset, timeframe, count)
+        print(f"{len(candles)} candles obtidos para {asset} (M1)")
+        
+        # Converta para DataFrame para análise (útil em indicadores MT5)
+        from pocketoptionapi_async.utils import candles_to_dataframe
+        df = candles_to_dataframe(candles)
+        print(df.tail())  # Últimos 5 candles | velas
+        print(f"Tendência: {df['close'].iloc[-1] > df['open'].iloc[-1] e 'Alta' ou 'Baixa'}")
+        
+    except Exception as e:
+        print(f"Erro ao obter candles | velas: {e}")
+
+await get_candles_example(client)
+```
+
+**Integração com Indicadores MT4/MT5**: Use `df` para calcular RSI ou Bollinger Bands via `pandas_ta` e sincronizar com `MetaTrader5.copy_rates_from_pos()`.
+
+### Colocar Ordem (Trade | Compra ou Venda)
+
+Simule ou execute uma ordem (Conta Demo para sua segurança). Use direção "Call" (Compra) ou "Put" (Venda).
+
+```python
+from pocketoptionapi_async.models import OrderDirection  # Ou str: ""Call" (Compra) ou "Put" (Venda)"
+
+async def place_order_example(client: AsyncPocketOptionClient):
+    asset = "EURUSD"
+    amount = 5.0  # Valor em USD
+    direction = "call"  # Ou OrderDirection.CALL
+    duration = 60  # 1 minuto em segundos
+    
+    try:
+        result = await client.buy(amount, asset, direction, duration)
+        if result and result.get("success", False):
+            print(f"Ordem Colocada! ID: {result.get('order_id')}, Profit Potencial: {result.get('payout', 0)}%")
+        else:
+            print(f"Falha na Ordem: {result.get('error_message', 'Desconhecido')}")
+    except Exception as e:
+        print(f"Erro na Ordem: {e}")
+
+await place_order_example(client)
+```
+
+**Aviso de Risco**: Sempre teste em  Conta Demo.
+
+### Monitoramento e Keep-Alive
+
+Para Conexões Persistentes (Ex.: Streams em Tempo Real para Chatbots de IA):
+
+```python
+from pocketoptionapi_async.connection_keep_alive import ConnectionKeepAlive
+
+async def keep_alive_example():
+    keep_alive = ConnectionKeepAlive(ssid, is_demo=True)
+    success = await keep_alive.start_persistent_connection()
+    if success:
+        # Envie ping periódico
+        await keep_alive.send_message('42["ps"]')
+        # Monitore stats
+        stats = keep_alive.get_connection_stats()
+        print(f"Conexão ativa: {stats['is_connected']}, Uptime: {stats['uptime']}")
+    await keep_alive.stop_persistent_connection()
+
+asyncio.run(keep_alive_example())
+```
+
+Para monitoramento avançado, use `ErrorMonitor` e `HealthChecker` de `monitoring.py` — perfeito para Dashboards full-stack com alertas em tempo real.
 
 ## 🎯 Recursos Avançados
 
