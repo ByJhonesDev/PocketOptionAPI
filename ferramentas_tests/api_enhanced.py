@@ -635,7 +635,7 @@ def _format_tabela_final(comparisons: List[Dict[str, Any]]) -> str:
 async def run_load_test_demo(ssid: str = None):
     if not ssid:
         #===================================================================================================================================================================================
-        ssid = r'42["auth",{"session":"h9gku7n5qesi0ashsfop829bc5","isDemo":1,"uid":80056933,"platform":2,"isFastHistory":true,"isOptimized":true}]' # Coloque aqui o seu SSID da Conta Demo
+        ssid = r'42["auth",{"session":"","isDemo":1,"uid":,"platform":,"isFastHistory":,"isOptimized":}]' # Coloque aqui o seu SSID da Conta Demo
         #===================================================================================================================================================================================
         logger.warning("Usando Conta Demo SSID para Testes")
     load_tester = LoadTester(ssid, is_demo=True)

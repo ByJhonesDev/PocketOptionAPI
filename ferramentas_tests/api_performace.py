@@ -435,7 +435,7 @@ async def main():
             "Usando SSID hardcoded de fallback para testes (não recomendado para produção)."
         )
         # Fallback para demo
-        ssid = r'42["auth",{"session":"h9gku7n5qesi0ashsfop829bc5","isDemo":1,"uid":80056933,"platform":2,"isFastHistory":true,"isOptimized":true}]'
+        ssid = r'42["auth",{"session":"","isDemo":1,"uid":,"platform":,"isFastHistory":,"isOptimized":}]' # Coloque aqui seu SSID_DEMO
 
     tester = PerformanceTester(
         ssid=ssid,
