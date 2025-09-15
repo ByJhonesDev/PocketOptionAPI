@@ -1,5 +1,5 @@
 """
-# Autor: ByMyselfJhones 
+# Autor: ByJhonesDev 
 # Função: Ferramenta de Teste de Carga e Estresse
 # Descrição:
 # - Executa testes de carga e estresse na PocketOption Async API
