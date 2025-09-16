@@ -12,25 +12,54 @@ import random
 
 # Mapeamento de ativos com seus respectivos IDs
 ASSETS: Dict[str, int] = {
-    # Pares Forex principais
-    "EURUSD": 1,
-    "GBPUSD": 56,
-    "USDJPY": 63,
-    "USDCHF": 62,
-    "USDCAD": 61,
+    # Mercado Aberto
+    # Pares Forex Principais
+    "AUDCAD": 42,
+    "AUDCHF": 43,
+    "AUDJPY": 41,
+    "AUDNZD": 44,
     "AUDUSD": 40,
+    "CADCHF": 45,
+    "CADJPY": 46,
+    "CHFJPY": 47,
+    "EURAUD": 48,
+    "EURCAD": 49,
+    "EURCHF": 50,
+    "EURGBP": 7,
+    "EURJPY": 6,
+    "EURNZD": 51,
+    "EURUSD": 1,
+    "GBPAUD": 52,
+    "GBPCAD": 53,
+    "GBPCHF": 54,
+    "GBPJPY": 57,
+    "GBPNZD": 55,
+    "GBPUSD": 56,
+    "NZDCAD": 58,
+    "NZDCHF": 59,
+    "NZDJPY": 60,
     "NZDUSD": 90,
-    # Pares Forex OTC
-    "EURUSD_otc": 66,
-    "GBPUSD_otc": 86,
-    "USDJPY_otc": 93,
-    "USDCHF_otc": 92,
-    "USDCAD_otc": 91,
-    "AUDUSD_otc": 71,
-    "AUDNZD_otc": 70,
+    "USDCAD": 61,
+    "USDCHF": 62,
+    "USDJPY": 63,
+    # Pares Exóticos
+    "CHFNOK": 457,
+    "EURHUF": 461,
+    "EURNOK": 456,
+    "EURRUB": 201,
+    "USDBRL": 97,
+    "USDCNH": 94,
+    "USDMXN": 95,
+    "USDRUB": 199,
+    "USDZAR": 96,
+
+    # Mercado OTC
+    # Pares Forex Principais OTC
     "AUDCAD_otc": 67,
     "AUDCHF_otc": 68,
     "AUDJPY_otc": 69,
+    "AUDNZD_otc": 70,
+    "AUDUSD_otc": 71,
     "CADCHF_otc": 72,
     "CADJPY_otc": 73,
     "CHFJPY_otc": 74,
@@ -38,109 +67,165 @@ ASSETS: Dict[str, int] = {
     "EURGBP_otc": 78,
     "EURJPY_otc": 79,
     "EURNZD_otc": 80,
+    "EURUSD_otc": 66,
     "GBPAUD_otc": 81,
     "GBPJPY_otc": 84,
+    "GBPUSD_otc": 86,
     "NZDJPY_otc": 89,
     "NZDUSD_otc": 90,
-    # Commodities
-    "XAUUSD": 2,  # Ouro
-    "XAUUSD_otc": 169,
-    "XAGUSD": 65,  # Prata
-    "XAGUSD_otc": 167,
-    "UKBrent": 50,  # Petróleo
-    "UKBrent_otc": 164,
-    "USCrude": 64,
-    "USCrude_otc": 165,
-    "XNGUSD": 311,  # Gás Natural
-    "XNGUSD_otc": 399,
-    "XPTUSD": 312,  # Platina
-    "XPTUSD_otc": 400,
-    "XPDUSD": 313,  # Paládio
-    "XPDUSD_otc": 401,
-    # Criptomoedas
-    "BTCUSD": 197,
-    "ETHUSD": 272,
-    "DASH_USD": 209,
-    "BTCGBP": 453,
-    "BTCJPY": 454,
-    "BCHEUR": 450,
-    "BCHGBP": 451,
-    "BCHJPY": 452,
-    "DOTUSD": 458,
-    "LNKUSD": 464,
-    # Índices de ações
-    "SP500": 321,
-    "SP500_otc": 408,
-    "NASUSD": 323,
-    "NASUSD_otc": 410,
-    "DJI30": 322,
-    "DJI30_otc": 409,
-    "JPN225": 317,
-    "JPN225_otc": 405,
-    "D30EUR": 318,
-    "D30EUR_otc": 406,
-    "E50EUR": 319,
-    "E50EUR_otc": 407,
-    "F40EUR": 316,
-    "F40EUR_otc": 404,
-    "E35EUR": 314,
-    "E35EUR_otc": 402,
-    "100GBP": 315,
-    "100GBP_otc": 403,
-    "AUS200": 305,
-    "AUS200_otc": 306,
-    "CAC40": 455,
-    "AEX25": 449,
-    "SMI20": 466,
-    "H33HKD": 463,
-    # Ações dos EUA
-    "#AAPL": 5,
-    "#AAPL_otc": 170,
-    "#MSFT": 24,
-    "#MSFT_otc": 176,
-    "#TSLA": 186,
-    "#TSLA_otc": 196,
-    "#FB": 177,
-    "#FB_otc": 187,
-    "#AMZN_otc": 412,
-    "#NFLX": 182,
-    "#NFLX_otc": 429,
-    "#INTC": 180,
-    "#INTC_otc": 190,
-    "#BA": 8,
-    "#BA_otc": 292,
-    "#JPM": 20,
-    "#JNJ": 144,
-    "#JNJ_otc": 296,
-    "#PFE": 147,
-    "#PFE_otc": 297,
-    "#XOM": 153,
-    "#XOM_otc": 426,
-    "#AXP": 140,
-    "#AXP_otc": 291,
-    "#MCD": 23,
-    "#MCD_otc": 175,
-    "#CSCO": 154,
-    "#CSCO_otc": 427,
-    "#VISA_otc": 416,
-    "#CITI": 326,
-    "#CITI_otc": 413,
-    "#FDX_otc": 414,
-    "#TWITTER": 330,
-    "#TWITTER_otc": 415,
-    "#BABA": 183,
-    "#BABA_otc": 428,
-    # Ativos adicionais
-    "EURRUB_otc": 200,
-    "USDRUB_otc": 199,
-    "EURHUF_otc": 460,
+    "USDCAD_otc": 91,
+    "USDCHF_otc": 92,
+    "USDJPY_otc": 93,
+    # Pares Exóticos OTC
+    "AEDCNY_otc": 538,
+    "BHDCNY_otc": 536,
     "CHFNOK_otc": 457,
-    # Microsoft e outras ações de tecnologia
-    "Microsoft_otc": 521,
-    "Facebook_otc": 522,
-    "Tesla_otc": 523,
-    "Boeing_otc": 524,
-    "American_Express_otc": 525,
+    "EURHUF_otc": 460,
+    "EURRUB_otc": 200,
+    "IRRUSD_otc": 548,
+    "JODCNY_otc": 546,
+    "KESUSD_otc": 554,
+    "LBPUSD_otc": 530,
+    "MADUSD_otc": 534,
+    "NGNUSD_otc": 552,
+    "OMRCNY_otc": 544,
+    "QARCNY_otc": 542,
+    "SARCNY_otc": 540,
+    "SYPUSD_otc": 550,
+    "TNDUSD_otc": 532,
+    "UAHUSD_otc": 558,
+    "USDARS_otc": 506,
+    "USDBDT_otc": 500,
+    "USDBRL_otc": 502,
+    "USDCLP_otc": 525,
+    "USDCNH_otc": 467,
+    "USDCOP_otc": 515,
+    "USDDZD_otc": 508,
+    "USDEGP_otc": 513,
+    "USDIDR_otc": 504,
+    "USDINR_otc": 202,
+    "USDMXN_otc": 509,
+    "USDMYR_otc": 523,
+    "USDPHP_otc": 511,
+    "USDPKR_otc": 517,
+    "USDRUB_otc": 199,
+    "USDTHB_otc": 521,
+    "USDVND_otc": 519,
+    "YERUSD_otc": 528,
+    "ZARUSD_otc": 556,
+    # Commodities OTC
+    "UKBrent_otc": 164,
+    "USCrude_otc": 165,
+    "XAGUSD_otc": 167,
+    "XAUUSD_otc": 169,
+    "XNGUSD_otc": 399,
+    "XPDUSD_otc": 401,
+    "XPTUSD_otc": 400,
+    # Índices OTC
+    "100GBP_otc": 403,
+    "AEX25_otc": 450,
+    "AUS200_otc": 306,
+    "D30EUR_otc": 406,
+    "DJI30_otc": 409,
+    "E35EUR_otc": 402,
+    "E50EUR_otc": 407,
+    "F40EUR_otc": 404,
+    "JPN225_otc": 405,
+    "NASUSD_otc": 410,
+    "SP500_otc": 408,
+    "VIX_otc": 560,
+
+    # Ações
+    "#AAPL": 5,  # Apple
+    "#AXP": 140,  # American Express
+    "#BA": 8,  # Boeing
+    "#BABA": 183,  # Alibaba
+    "#CITI": 326,  # Citigroup
+    "#CSCO": 154,  # Cisco
+    "#FB": 177,  # Facebook (Meta)
+    "#INTC": 180,  # Intel
+    "#JNJ": 144,  # Johnson & Johnson
+    "#JPM": 20,  # JPMorgan
+    "#MCD": 23,  # McDonalds
+    "#MSFT": 24,  # Microsoft
+    "#NFLX": 182,  # Netflix
+    "#PFE": 147,  # Pfizer
+    "#TSLA": 186,  # Tesla
+    "#TWITTER": 330,  # Twitter (X)
+    "#XOM": 153,  # Exxon
+    "#AAPL_otc": 170,  # Apple
+    "#AMD_otc": 568,  # AMD
+    "#AXP_otc": 291,  # American Express
+    "#BABA_otc": 428,  # Alibaba
+    "#BA_otc": 292,  # Boeing
+    "#CITI_otc": 413,  # Citigroup
+    "#COIN_otc": 570,  # Coinbase
+    "#CSCO_otc": 427,  # Cisco
+    "#FB_otc": 187,  # Facebook (Meta)
+    "#GME_otc": 566,  # GameStop
+    "#INTC_otc": 190,  # Intel
+    "#JNJ_otc": 296,  # Johnson & Johnson
+    "#MARA_otc": 572,  # Marathon Digital
+    "#MCD_otc": 175,  # McDonalds
+    "#MSFT_otc": 176,  # Microsoft
+    "#NFLX_otc": 429,  # Netflix
+    "#PFE_otc": 297,  # Pfizer
+    "#PLTR_otc": 562,  # Palantir
+    "#TSLA_otc": 196,  # Tesla
+    "#TWITTER_otc": 415,  # Twitter (X)
+    "#XOM_otc": 426,  # Exxon
+    "American_Express_otc": 525,  # American Express
+    "Boeing_otc": 524,  # Boeing
+    "Facebook_otc": 522,  # Facebook (Meta)
+    "Microsoft_otc": 521,  # Microsoft
+    "Tesla_otc": 523,  # Tesla
+
+    # Criptomoedas
+    "AVAX_otc": 481,  # Avalanche
+    "BCHEUR": 450,  # BCHEUR
+    "BCHGBP": 451,  # BCHGBP
+    "BCHJPY": 452,  # BCHJPY
+    "BITB_otc": 494,  # Bitwise Bitcoin ETF
+    "BTCGBP": 453,  # BTCGBP
+    "BTCJPY": 454,  # BTCJPY
+    "BTCUSD": 197,  # BTCUSD
+    "BTCUSD_otc": 197,  # BTCUSD
+    "DASH_USD": 209,  # DASH_USD
+    "DOTUSD": 458,  # DOTUSD
+    "DOTUSD_otc": 486,  # DOTUSD
+    "ETHUSD": 272,  # ETHUSD
+    "ETHUSD_otc": 487,  # ETHUSD
+    "LINK_otc": 478,  # Chainlink
+    "LNKUSD": 464,  # LNKUSD
+    "LTCUSD_otc": 488,  # Litecoin
+    "MATIC_otc": 491,  # Polygon
+
+    # Commodities (Mercado Aberto)
+    "UKBrent": 50,  # Petróleo Brent
+    "USCrude": 64,  # Petróleo WTI
+    "XAGEUR": 103,  # Prata (EUR)
+    "XAGUSD": 65,  # Prata
+    "XAUEUR": 102,  # Ouro (EUR)
+    "XAUUSD": 2,  # Ouro
+    "XNGUSD": 311,  # Gás Natural
+    "XPDUSD": 313,  # Paládio
+    "XPTUSD": 312,  # Platina
+
+    # Índices de Ações (Mercado Aberto)
+    "100GBP": 315,  # FTSE 100
+    "AEX25": 449,  # AEX
+    "AUS200": 305,  # ASX 200
+    "CAC40": 455,  # CAC 40
+    "D30EUR": 318,  # DAX
+    "DJI30": 322,  # Dow Jones
+    "E35EUR": 314,  # E35EUR
+    "E50EUR": 319,  # Euro Stoxx 50
+    "F40EUR": 316,  # CAC 40
+    "H33HKD": 463,  # Hang Seng
+    "JPN225": 317,  # Nikkei
+    "NASUSD": 323,  # NASDAQ
+    "SMI20": 466,  # Swiss
+    "SP500": 321,  # S&P 500
 }
 
 # Regiões WebSocket com suas URLs
