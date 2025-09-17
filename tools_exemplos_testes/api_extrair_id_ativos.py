@@ -117,13 +117,13 @@ def generate_formatted_assets(assets_dict: Dict[str, int]) -> str:
     for k, v in cleaned_dict.items():
         # Corrige IDs errados (ex.: EURUSD_otc: 1 -> 66)
         if k in constants_assets and k.endswith("_otc") and v != constants_assets[k]:
-            logger.warning(f"⚠️ ID de {k} diverge: Versão 1 ({v}) vs Versão 2 ({constants_assets[k]}). Usando Versão 2.")
+            logger.warning(f"⚠️  ID de {k} diverge: Versão 1 ({v}) vs Versão 2 ({constants_assets[k]}). Usando Versão 2.")
             continue # Usa ID da Versão 2
         merged_dict[k] = v
     # Adiciona placeholder para AEX25_otc se ausente
     if "AEX25_otc" not in merged_dict:
         merged_dict["AEX25_otc"] = 450 # Placeholder
-        logger.warning("⚠️ AEX25_otc não extraído. Usando placeholder ID 450.")
+        logger.warning("⚠️  AEX25_otc não extraído. Usando placeholder ID 450.")
     # Lista de ativos por categoria
     forex_principais_list = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY", "AUDJPY", "AUDCAD", "AUDCHF", "AUDNZD", "CADCHF", "CADJPY", "CHFJPY", "EURAUD", "EURCAD", "EURCHF", "EURNZD", "GBPAUD", "GBPCAD", "GBPCHF", "GBPNZD", "NZDCAD", "NZDCHF", "NZDJPY"]
     forex_exoticos_list = ["EURHUF", "EURNOK", "CHFNOK", "EURRUB", "USDRUB", "USDCNH", "USDMXN", "USDZAR", "USDBRL", "USDARS", "USDBDT", "USDCLP", "USDCOP", "USDDZD", "USDEGP", "USDIDR", "USDINR", "USDMYR", "USDPHP", "USDPKR", "USDTHB", "USDVND"]
@@ -260,11 +260,11 @@ def extract_assets_from_payload(payload: str) -> Dict[str, int]:
                             logger.debug(f"🔑 Extraído: {asset_name} -> {asset_id} (OTC: {is_otc})")
         logger.debug(f"🔍 Extraídos {len(assets_dict)} ativos deste payload.")
     except json.JSONDecodeError as e:
-        logger.debug(f"⚠️ Erro JSON: {e}; pulando.")
+        logger.debug(f"⚠️  Erro JSON: {e}; pulando.")
     except base64.binascii.Error as e:
-        logger.debug(f"⚠️ Erro Base64: {e}; pulando.")
+        logger.debug(f"⚠️  Erro Base64: {e}; pulando.")
     except Exception as e:
-        logger.warning(f"⚠️ Erro no parsing: {e}")
+        logger.warning(f"⚠️  Erro no parsing: {e}")
     return assets_dict
 def get_pocketoption_asset_ids():
     """
@@ -280,7 +280,7 @@ def get_pocketoption_asset_ids():
         login_url = "https://pocketoption.com/pt/login"
         cabinet_base_url = "https://pocketoption.com/pt/cabinet"
         real_url = "https://pocketoption.com/pt/cabinet/quick-high-low/" # Conta REAL
-        logger.warning("⚠️ AVISO: Este script acessa a CONTA REAL. Para teste, mude 'real_url' para demo.")
+        logger.warning("⚠️  AVISO: Este script acessa a CONTA REAL. Para teste, mude 'real_url' para demo.")
         logger.info(f"🌐 Acessando página de login: {login_url}")
         driver.get(login_url)
         # Aguarda login manual
@@ -321,7 +321,7 @@ def get_pocketoption_asset_ids():
             logger.info("✅ Código ASSETS formatado gerado e salvo em GET_ASSETS/updated_assets.py!")
             logger.info("📋 Copie o conteúdo de updated_assets.py para o seu constants.py.")
         else:
-            logger.warning("⚠️ Nenhum ativo encontrado. Rode novamente ou verifique decoded_assets_payload.json.")
+            logger.warning("⚠️  Nenhum ativo encontrado. Rode novamente ou verifique decoded_assets_payload.json.")
     except Exception as e:
         logger.error(f"❌ Erro: {e}", exc_info=True)
     finally:
