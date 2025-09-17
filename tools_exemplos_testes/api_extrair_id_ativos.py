@@ -296,7 +296,7 @@ def get_pocketoption_asset_ids():
         all_assets = {}
         all_payloads = []
         for attempt in range(1, max_attempts + 1):
-            logger.info(f"⏱️ Tentativa {attempt}/{max_attempts}: Aguardando {attempt_interval} segundos para conexões WebSocket.")
+            logger.info(f"⏱️  Tentativa {attempt}/{max_attempts}: Aguardando {attempt_interval} segundos para conexões WebSocket.")
             time.sleep(attempt_interval)
             get_log = getattr(driver, "get_log", None)
             if not callable(get_log):
