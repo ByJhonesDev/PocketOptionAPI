@@ -327,6 +327,6 @@ def get_pocketoption_asset_ids():
     finally:
         if driver:
             driver.quit()
-            logger.info("🚪 WebDriver fechado.")
+            logger.info("🚪 WebDriver Fechado.")
 if __name__ == "__main__":
     get_pocketoption_asset_ids()
