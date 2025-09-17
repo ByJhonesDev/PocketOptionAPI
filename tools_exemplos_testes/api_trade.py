@@ -47,7 +47,7 @@ from datetime import datetime
 # =========================
 # Configurações Fixas
 # =========================
-SSID_FIXO = '42["auth",{"session":"h9gku7n5qesi0ashsfop829bc5","isDemo":1,"uid":80056933,"platform":2,"isFastHistory":true,"isOptimized":true}]'  # SSID da conta DEMO
+SSID_FIXO = '42["auth",{"session":"","isDemo":1,"uid":,"platform":,"isFastHistory":,"isOptimized":}]'  # SSID da conta DEMO
 LOGS_DIR = r'C:\JhonesProIABoT\Logs'  # Pasta onde os logs serão salvos
 RESULTADOS_FILE = os.path.join(LOGS_DIR, 'resultados_gerais_pkt.txt')
 ASSET = 'AUDCAD_otc'
