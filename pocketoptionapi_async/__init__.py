@@ -26,7 +26,7 @@ from .models import (
     Asset,
     ConnectionStatus,
 )
-from .constants import ASSETS, Regions
+from .constants import ASSETS, Regions, API_LIMITS, DEFAULT_HEADERS
 
 # Import monitoring components
 from .monitoring import (
@@ -62,6 +62,8 @@ __all__ = [
     "OrderStatus",
     "OrderDirection",
     "Asset",
+    "API_LIMITS",
+    "DEFAULT_HEADERS",
     "ConnectionStatus",
     "ASSETS",
     "REGIONS",

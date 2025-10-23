@@ -17,7 +17,7 @@ from collections import deque, defaultdict
 import statistics
 from loguru import logger
 
-from client import AsyncPocketOptionClient
+from .client import AsyncPocketOptionClient
 
 @dataclass
 class ConnectionMetrics:
