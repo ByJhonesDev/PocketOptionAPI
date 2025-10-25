@@ -11,8 +11,7 @@ Destaques:
 - Gera:
   - GET_SSID/ENDPOINTS_DEMO.env
   - GET_SSID/ENDPOINTS_REAL.env
-  - GET_SSID/CF_COOKIES.txt
-  - Atualiza .env com pares PO_DEMO_* e PO_REAL_*.
+  - Atualiza .env com pares PO_DEMO_* e PO_REAL_* (e PO_EXTRA_COOKIES).
 """
 
 from __future__ import annotations
@@ -80,7 +79,7 @@ DEMO_URL          = "https://pocketoption.com/pt/cabinet/demo-quick-high-low/"
 REAL_URL          = "https://pocketoption.com/pt/cabinet/quick-high-low/"
 WAIT_WS_SECONDS   = int(os.environ.get("WAIT_WS_SECONDS", "15"))
 
-# Valores “com aspas” como solicitado
+# Valores “com aspas” para gravar no .env (mantidos)
 ENV_QUOTED_DEFAULTS = {
     "WAIT_WS_MAX": "'600'",
     "PO_HTTP_API_BASE": "'https://api.pocketoption.com'",
@@ -240,10 +239,10 @@ def _silence_stdout_stderr():
 # ==============
 # Coleta por "label" (DEMO/REAL)
 # ==============
-def _collect_context_for(driver, label: str, target_url: str) -> Dict[str, str]:
+def _collect_context_for(driver, label: str, target_url: str) -> Tuple[Dict[str, str], str]:
     """
     Navega até 'target_url', espera carregar e coleta logs+cookies.
-    Retorna dict de pares já prontos p/ .env com prefixo PO_{LABEL}_*.
+    Retorna dict de pares já prontos p/ .env com prefixo PO_{LABEL}_* e a linha de cookies.
     """
     U = label.upper()
     log.info(f"🎯 [{U}] Acessando: {target_url}")
@@ -266,7 +265,6 @@ def _collect_context_for(driver, label: str, target_url: str) -> Dict[str, str]:
     origin = "https://pocketoption.com"
     ua = driver.execute_script("return navigator.userAgent") or ""
 
-    # cookies (apenas grava uma vez fora; aqui devolvemos a linha)
     cookie_line = _collect_cf_cookie_line(driver)
 
     env_pairs = {
@@ -282,12 +280,142 @@ def _collect_context_for(driver, label: str, target_url: str) -> Dict[str, str]:
     }
     return env_pairs, cookie_line
 
+# ==============
+# Renderização de Snapshot (formato solicitado)
+# ==============
+def _render_snapshot(
+    *,
+    cookie_line: str,
+    generic_ws: Dict[str, str],
+    demo_pairs: Dict[str, str],
+    real_pairs: Dict[str, str],
+    rest_common: Dict[str, str],
+    wait_ws_max: str,
+    verify_ssl: str,
+    ws_resolve_ip: str,
+    ws_sni_host: str,
+    browser: str,
+    headless: str,
+    user_agent: str,
+    wait_ws_seconds: str
+) -> str:
+    """
+    Monta o arquivo .env snapshot com o formato solicitado (blocos/cabeçalhos).
+    As chaves genéricas (PO_WS_*) são baseadas na priorização REAL e união de candidatos.
+    """
+    def g(d, k, default=""):
+        return d.get(k, default)
+
+    # GENÉRICO (comuns)
+    PO_WS_HTTP_BASE   = generic_ws.get("PO_WS_HTTP_BASE", "")
+    PO_SOCKETIO_PATH  = generic_ws.get("PO_SOCKETIO_PATH", "")
+    PO_WS_ORIGIN      = generic_ws.get("PO_WS_ORIGIN", "")
+    PO_WS_UA          = generic_ws.get("PO_WS_UA", "")
+    PO_WS_CANDIDATES  = generic_ws.get("PO_WS_CANDIDATES", "")
+
+    # DEMO
+    PO_DEMO_WS_HTTP_BASE  = g(demo_pairs, "PO_DEMO_WS_HTTP_BASE")
+    PO_DEMO_SOCKETIO_PATH = g(demo_pairs, "PO_DEMO_SOCKETIO_PATH")
+    PO_DEMO_WS_ORIGIN     = g(demo_pairs, "PO_DEMO_WS_ORIGIN")
+    PO_DEMO_WS_UA         = g(demo_pairs, "PO_DEMO_WS_UA")
+    PO_DEMO_WS_CANDIDATES = g(demo_pairs, "PO_DEMO_WS_CANDIDATES")
+
+    # REAL
+    PO_REAL_WS_HTTP_BASE  = g(real_pairs, "PO_REAL_WS_HTTP_BASE")
+    PO_REAL_SOCKETIO_PATH = g(real_pairs, "PO_REAL_SOCKETIO_PATH")
+    PO_REAL_WS_ORIGIN     = g(real_pairs, "PO_REAL_WS_ORIGIN")
+    PO_REAL_WS_UA         = g(real_pairs, "PO_REAL_WS_UA")
+    PO_REAL_WS_CANDIDATES = g(real_pairs, "PO_REAL_WS_CANDIDATES")
+
+    # REST comuns (duplicado DEMO/REAL para espelhar o exemplo)
+    PO_HTTP_API_BASE      = g(rest_common, "PO_HTTP_API_BASE", "https://api.pocketoption.com")
+    PO_HTTP_ASSETS_PATH   = g(rest_common, "PO_HTTP_ASSETS_PATH", "/api/v1/assets")
+    PO_HTTP_HISTORY_PATH  = g(rest_common, "PO_HTTP_HISTORY_PATH", "/api/v1/history")
+    PO_DEMO_HTTP_API_BASE     = g(rest_common, "PO_DEMO_HTTP_API_BASE", PO_HTTP_API_BASE)
+    PO_DEMO_HTTP_ASSETS_PATH  = g(rest_common, "PO_DEMO_HTTP_ASSETS_PATH", PO_HTTP_ASSETS_PATH)
+    PO_DEMO_HTTP_HISTORY_PATH = g(rest_common, "PO_DEMO_HTTP_HISTORY_PATH", PO_HTTP_HISTORY_PATH)
+    PO_REAL_HTTP_API_BASE     = g(rest_common, "PO_REAL_HTTP_API_BASE", PO_HTTP_API_BASE)
+    PO_REAL_HTTP_ASSETS_PATH  = g(rest_common, "PO_REAL_HTTP_ASSETS_PATH", PO_HTTP_ASSETS_PATH)
+    PO_REAL_HTTP_HISTORY_PATH = g(rest_common, "PO_REAL_HTTP_HISTORY_PATH", PO_HTTP_HISTORY_PATH)
+
+    lines = []
+    lines += [
+        "###########################",
+        "# COOKIES CLOUDFLARE",
+        "###########################",
+        f"PO_EXTRA_COOKIES={cookie_line}",
+        "",
+        "###########################",
+        "# ENDPOINTS / WEBSOCKET",
+        "###########################",
+        f"PO_WS_HTTP_BASE={PO_WS_HTTP_BASE}",
+        f"PO_SOCKETIO_PATH={PO_SOCKETIO_PATH}",
+        f"PO_WS_ORIGIN={PO_WS_ORIGIN}",
+        f"PO_WS_UA={PO_WS_UA}",
+        f"PO_WS_CANDIDATES={PO_WS_CANDIDATES}",
+        f"WAIT_WS_MAX={wait_ws_max}",
+        "########################################################",
+        "# PERFIL DEMO (USADO QUANDO PO_ACCOUNT_MODE=PRACTICE)",
+        "########################################################",
+        f"PO_DEMO_WS_ORIGIN={PO_DEMO_WS_ORIGIN}",
+        f"PO_DEMO_WS_UA={PO_DEMO_WS_UA}",
+        f"PO_DEMO_WS_CANDIDATES={PO_DEMO_WS_CANDIDATES}",
+        f"PO_DEMO_WS_HTTP_BASE={PO_DEMO_WS_HTTP_BASE}",
+        f"PO_DEMO_SOCKETIO_PATH={PO_DEMO_SOCKETIO_PATH}",
+        "",
+        "########################################################",
+        "# PERFIL REAL (USADO QUANDO PO_ACCOUNT_MODE=REAL)",
+        "########################################################",
+        f"PO_REAL_WS_ORIGIN={PO_REAL_WS_ORIGIN}",
+        f"PO_REAL_WS_UA={PO_REAL_WS_UA}",
+        f"PO_REAL_WS_CANDIDATES={PO_REAL_WS_CANDIDATES}",
+        f"PO_REAL_WS_HTTP_BASE={PO_REAL_WS_HTTP_BASE}",
+        f"PO_REAL_SOCKETIO_PATH={PO_REAL_SOCKETIO_PATH}",
+        "",
+        "##############",
+        "# HTTP REST ",
+        "##############",
+        f"PO_HTTP_API_BASE={PO_HTTP_API_BASE}",
+        f"PO_HTTP_ASSETS_PATH={PO_HTTP_ASSETS_PATH}",
+        f"PO_HTTP_HISTORY_PATH={PO_HTTP_HISTORY_PATH}",
+        f"PO_DEMO_HTTP_API_BASE={PO_DEMO_HTTP_API_BASE}",
+        f"PO_DEMO_HTTP_ASSETS_PATH={PO_DEMO_HTTP_ASSETS_PATH}",
+        f"PO_DEMO_HTTP_HISTORY_PATH={PO_DEMO_HTTP_HISTORY_PATH}",
+        f"PO_REAL_HTTP_API_BASE={PO_REAL_HTTP_API_BASE}",
+        f"PO_REAL_HTTP_ASSETS_PATH={PO_REAL_HTTP_ASSETS_PATH}",
+        f"PO_REAL_HTTP_HISTORY_PATH={PO_REAL_HTTP_HISTORY_PATH}",
+        "",
+        "#####################",
+        "# SSL / Diagnóstico",
+        "#####################",
+        "# Em produção, ideal é true. Use false só para depurar.",
+        f"PO_VERIFY_SSL={verify_ssl}",
+        "",
+        "#####################",
+        "# Overrides DNS/SNI",
+        "#####################",
+        f"PO_WS_RESOLVE_IP={ws_resolve_ip}",
+        f"PO_WS_SNI_HOST={ws_sni_host}",
+        "",
+        "#########################",
+        "# Navegador / WebDriver",
+        "#########################",
+        f"BROWSER={browser}",
+        f"HEADLESS={headless}",
+        f"USER_AGENT={user_agent}",
+        f"WAIT_WS_SECONDS={wait_ws_seconds}",
+        "",
+    ]
+    return "\n".join(lines)
+
+# ==============
+# MAIN
+# ==============
 def main():
     out_dir = Path("GET_SSID"); out_dir.mkdir(exist_ok=True)
     env_path = Path(".env")
     snapshot_demo = out_dir / "ENDPOINTS_DEMO.env"
     snapshot_real = out_dir / "ENDPOINTS_REAL.env"
-    cookies_file = out_dir / "CF_COOKIES.txt"
 
     driver = None
     try:
@@ -295,7 +423,7 @@ def main():
             log.info("➡️  Iniciando Navegador Chrome . . .")
             driver = _build_driver_uc()
         else:
-            log.info("➡️  Iniciando Chrome com Selenium padrão (perfil temporário)…")
+            log.info("➡️  Iniciando Chrome com Selenium padrão (profilo temporário)…")
             driver = _build_driver_selenium()
 
         # login
@@ -311,12 +439,11 @@ def main():
         # ===== REAL =====
         real_pairs, cookie_line_real = _collect_context_for(driver, "REAL", REAL_URL)
 
-        # cookies (provavelmente iguais, mas preferimos o mais completo)
+        # cookies (preferimos o mais completo)
         cookie_line = cookie_line_real or cookie_line_demo or ""
-        cookies_file.write_text(cookie_line, encoding="utf-8")
-        log.info(f"💾 Cookies salvos: {cookies_file} -> {cookie_line if cookie_line else '(vazio)'}")
+        log.info(f"🍪 Linha de cookies coletada: {cookie_line if cookie_line else '(vazio)'}")
 
-        # Monta blocos com defaults comuns "com aspas"
+        # Monta defaults comuns (para o .env manteremos com aspas conforme política)
         common_defaults = {
             "WAIT_WS_MAX": ENV_QUOTED_DEFAULTS["WAIT_WS_MAX"],
             "PO_VERIFY_SSL": ENV_QUOTED_DEFAULTS["PO_VERIFY_SSL"],
@@ -324,10 +451,10 @@ def main():
             "PO_WS_SNI_HOST": ENV_QUOTED_DEFAULTS["PO_WS_SNI_HOST"],
             "BROWSER": ENV_QUOTED_DEFAULTS["BROWSER"],
             "HEADLESS": ENV_QUOTED_DEFAULTS["HEADLESS"],
-            "PO_EXTRA_COOKIES": cookie_line,
+            "PO_EXTRA_COOKIES": cookie_line,  # sem aspas
         }
 
-        # UA genérica (p/ requests HTTP) + tempos
+        # UA genérica + tempos
         with contextlib.suppress(Exception):
             ua_any = driver.execute_script("return navigator.userAgent") or ""
         common_runtime = {
@@ -335,25 +462,86 @@ def main():
             "WAIT_WS_SECONDS": str(WAIT_WS_SECONDS),
         }
 
-        # Snapshots separados
-        def _fmt_snapshot(pairs: Dict[str, str]) -> str:
-            return "\n".join(f"{k}={v}" for k, v in pairs.items()) + "\n"
+        # ---------- GENÉRICOS (PO_WS_*) ----------
+        def _get(key, dct, default=""):
+            return dct.get(key, default)
 
+        demo_cands = _get("PO_DEMO_WS_CANDIDATES", demo_pairs, "")
+        real_cands = _get("PO_REAL_WS_CANDIDATES", real_pairs, "")
+
+        def _union_csv(a: str, b: str) -> str:
+            seen, out = set(), []
+            for s in (a.split(",") + b.split(",")):
+                s = s.strip()
+                if s and s not in seen:
+                    out.append(s); seen.add(s)
+            return ",".join(out)
+
+        generic_ws = {
+            "PO_WS_HTTP_BASE":  _get("PO_REAL_WS_HTTP_BASE", real_pairs) or _get("PO_DEMO_WS_HTTP_BASE", demo_pairs) or "https://api-eu.po.market",
+            "PO_SOCKETIO_PATH": _get("PO_REAL_SOCKETIO_PATH", real_pairs) or _get("PO_DEMO_SOCKETIO_PATH", demo_pairs) or "/socket.io",
+            "PO_WS_ORIGIN":     _get("PO_REAL_WS_ORIGIN", real_pairs) or _get("PO_DEMO_WS_ORIGIN", demo_pairs) or "https://pocketoption.com",
+            "PO_WS_UA":         _get("PO_REAL_WS_UA", real_pairs) or _get("PO_DEMO_WS_UA", demo_pairs) or ua_any,
+            "PO_WS_CANDIDATES": _union_csv(real_cands, demo_cands),
+        }
+
+        # ---------- REST comuns ----------
+        rest_common = {
+            "PO_HTTP_API_BASE": _get("PO_REAL_HTTP_API_BASE", real_pairs, _get("PO_DEMO_HTTP_API_BASE", demo_pairs, "https://api.pocketoption.com")),
+            "PO_HTTP_ASSETS_PATH": _get("PO_REAL_HTTP_ASSETS_PATH", real_pairs, _get("PO_DEMO_HTTP_ASSETS_PATH", demo_pairs, "/api/v1/assets")),
+            "PO_HTTP_HISTORY_PATH": _get("PO_REAL_HTTP_HISTORY_PATH", real_pairs, _get("PO_DEMO_HTTP_HISTORY_PATH", demo_pairs, "/api/v1/history")),
+            "PO_DEMO_HTTP_API_BASE":  _get("PO_DEMO_HTTP_API_BASE", demo_pairs, "https://api.pocketoption.com"),
+            "PO_DEMO_HTTP_ASSETS_PATH": _get("PO_DEMO_HTTP_ASSETS_PATH", demo_pairs, "/api/v1/assets"),
+            "PO_DEMO_HTTP_HISTORY_PATH": _get("PO_DEMO_HTTP_HISTORY_PATH", demo_pairs, "/api/v1/history"),
+            "PO_REAL_HTTP_API_BASE":  _get("PO_REAL_HTTP_API_BASE", real_pairs, "https://api.pocketoption.com"),
+            "PO_REAL_HTTP_ASSETS_PATH": _get("PO_REAL_HTTP_ASSETS_PATH", real_pairs, "/api/v1/assets"),
+            "PO_REAL_HTTP_HISTORY_PATH": _get("PO_REAL_HTTP_HISTORY_PATH", real_pairs, "/api/v1/history"),
+        }
+
+        # ---------- Snapshots (com cabeçalhos e PO_EXTRA_COOKIES) ----------
         snapshot_demo.write_text(
-            _fmt_snapshot({**demo_pairs, **common_defaults, **common_runtime}), encoding="utf-8"
+            _render_snapshot(
+                cookie_line=cookie_line,
+                generic_ws=generic_ws,
+                demo_pairs=demo_pairs,
+                real_pairs=real_pairs,
+                rest_common=rest_common,
+                wait_ws_max="600",
+                verify_ssl="false",
+                ws_resolve_ip="",
+                ws_sni_host="",
+                browser="chrome",
+                headless="false",
+                user_agent=ua_any,
+                wait_ws_seconds=str(WAIT_WS_SECONDS),
+            ),
+            encoding="utf-8"
         )
         log.info(f"💾 Snapshot DEMO salvo: {snapshot_demo}")
 
         snapshot_real.write_text(
-            _fmt_snapshot({**real_pairs, **common_defaults, **common_runtime}), encoding="utf-8"
+            _render_snapshot(
+                cookie_line=cookie_line,
+                generic_ws=generic_ws,
+                demo_pairs=demo_pairs,
+                real_pairs=real_pairs,
+                rest_common=rest_common,
+                wait_ws_max="600",
+                verify_ssl="false",
+                ws_resolve_ip="",
+                ws_sni_host="",
+                browser="chrome",
+                headless="false",
+                user_agent=ua_any,
+                wait_ws_seconds=str(WAIT_WS_SECONDS),
+            ),
+            encoding="utf-8"
         )
         log.info(f"💾 Snapshot REAL salvo: {snapshot_real}")
 
-        # Atualiza .env → grava TODOS os pares (com aspas nos defaults)
-        # 1) comuns
+        # ---------- Atualiza .env ----------
         _write_env_pairs(common_defaults, env_path)
         _write_env_pairs(common_runtime, env_path)
-        # 2) DEMO/REAL
         _write_env_pairs(demo_pairs, env_path)
         _write_env_pairs(real_pairs, env_path)
 
@@ -365,7 +553,7 @@ def main():
                 if u.strip():
                     log.info(f"  • {u.strip()}")
 
-        log.info("✅ Arquivo .env gerado e atualizado com DEMO e REAL + Cookies/REST/WS/Navegador com Sucesso")
+        log.info("✅ .env atualizado e snapshots com PO_EXTRA_COOKIES + WS/REST gerados com sucesso")
 
     finally:
         if driver:
