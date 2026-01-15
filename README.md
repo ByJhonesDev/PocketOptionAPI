@@ -320,7 +320,7 @@ Este projeto é uma implementação não oficial e não possui vínculo com a Po
 
 ## 📞 Suporte
 
-- 💬 Telegram: [Trader Jhones](https://t.me/jc_jhones_oficial)
+- 💬 Telegram: [ByJhonesDev](https://t.me/jc_jhones_oficial)
 - 🌐 Website: [ByJhonesDev](https://github.com/ByJhonesDev)
 
 ---
