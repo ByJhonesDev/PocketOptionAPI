@@ -306,3 +306,5 @@ DEFAULT_HEADERS = {
     "Origin": "https://pocketoption.com",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 }
+# Mapeamento reverso: ID para nome do ativo (para facilitar parsing de respostas da API)
+ASSET_IDS_TO_NAMES: Dict[int, str] = {v: k for k, v in ASSETS.items()}

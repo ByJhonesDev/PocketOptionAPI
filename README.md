@@ -1,7 +1,7 @@
 # 🚀 PocketOption API
 
 [![GitHub](https://img.shields.io/badge/GitHub-ByJhonesDev-blue?style=flat-square&logo=github)](https://github.com/ByJhones)
-[![Telegram](https://img.shields.io/badge/Telegram-@traderjhonesofc-blue?style=flat-square&logo=telegram)](https://t.me/traderjhonesofc)
+[![Telegram](https://img.shields.io/badge/Telegram-@traderjhonesofc-blue?style=flat-square&logo=telegram)](https://t.me/jc_jhones_oficial)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/Python-3.12.7-blue?style=flat-square)](https://www.python.org)
 
@@ -320,7 +320,7 @@ Este projeto é uma implementação não oficial e não possui vínculo com a Po
 
 ## 📞 Suporte
 
-- 💬 Telegram: [Trader Jhones](https://t.me/traderjhonesofc)
+- 💬 Telegram: [Trader Jhones](https://t.me/jc_jhones_oficial)
 - 🌐 Website: [ByJhonesDev](https://github.com/ByJhonesDev)
 
 ---

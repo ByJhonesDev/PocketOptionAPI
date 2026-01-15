@@ -13,8 +13,51 @@ import asyncio
 import json
 import time
 import uuid
+
 from typing import Optional, List, Dict, Any, Union, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+
+import pandas as pd
+from loguru import logger
+
+
+def _server_ts_to_dt_utc(ts: Any) -> datetime:
+    """Convert PocketOption server timestamps to timezone-aware UTC datetime.
+
+    PocketOption timestamps are *usually* epoch seconds, but sometimes:
+    - milliseconds (epoch ms)
+    - a constant timezone-offset skew (e.g. server sends a local-naive timestamp)
+      which makes candles appear ~1–3 hours in the future.
+
+    This function normalizes ms→s and applies a best-effort hour-offset correction
+    if the timestamp is far in the future (> 5 minutes).
+    """
+    try:
+        v = float(ts)
+    except Exception:
+        v = 0.0
+
+    # ms → s
+    if v > 10_000_000_000:
+        v /= 1000.0
+
+    dt = datetime.fromtimestamp(v, tz=timezone.utc)
+
+    # Heuristic: if server candle time is far in the future, correct by whole hours.
+    now = datetime.now(timezone.utc)
+    if dt > now + timedelta(minutes=5):
+        delta = (dt - now).total_seconds()
+        hours = int(round(delta / 3600.0))
+        if hours == 0:
+            hours = 1
+        # Clamp correction to a sane range
+        hours = max(min(hours, 12), -12)
+        dt = dt - timedelta(hours=hours)
+
+    return dt
+
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 import pandas as pd
 from loguru import logger
@@ -30,7 +73,7 @@ from .models import (
     OrderDirection,
     ServerTime,
 )
-from .constants import ASSETS, REGIONS, TIMEFRAMES, API_LIMITS
+from .constants import ASSETS, REGIONS, TIMEFRAMES, API_LIMITS, ASSET_IDS_TO_NAMES
 from .exceptions import (
     PocketOptionError,
     ConnectionError,
@@ -133,6 +176,11 @@ class AsyncPocketOptionClient:
             "messages_received": 0,
             "connection_start_time": None,
         }
+
+        # Adicione isso para cache de payouts
+        self._payouts_cache: Dict[str, float] = {}  # Cache {asset: payout}
+        self._payouts_cache_timestamp: Optional[float] = None
+        self._payouts_cache_ttl: float = 30.0  # TTL em segundos (ajustável)
 
         logger.info(
             f"Initialized PocketOption client (demo={is_demo}, uid={self.uid}, persistent={persistent_connection}) with enhanced monitoring"
@@ -961,7 +1009,7 @@ class AsyncPocketOptionClient:
 
         try:
             # Wait for the response (with timeout)
-            candles = await asyncio.wait_for(candle_future, timeout=10.0)
+            candles = await asyncio.wait_for(candle_future, timeout=10.0)  # Timeout de 10s
             return candles
         except asyncio.TimeoutError:
             if self.enable_logging:
@@ -990,7 +1038,7 @@ class AsyncPocketOptionClient:
                         actual_low = min(raw_high, raw_low)
 
                         candle = Candle(
-                            timestamp=datetime.fromtimestamp(candle_data[0]),
+                            timestamp=_server_ts_to_dt_utc(candle_data[0]),
                             open=float(candle_data[1]),
                             high=actual_high,
                             low=actual_low,
@@ -1169,6 +1217,10 @@ class AsyncPocketOptionClient:
 
     async def _on_stream_update(self, data: Dict[str, Any]) -> None:
         """Handle stream update event - includes real-time candle data"""
+        # PocketOption sometimes sends placeholder keep-alive-like frames here.
+        if isinstance(data, dict) and data.get("_placeholder") is True:
+            return
+
         if self.enable_logging:
             logger.debug(f"📡 Stream update: {data}")
 
@@ -1260,7 +1312,7 @@ class AsyncPocketOptionClient:
                 for item in candle_data:
                     if isinstance(item, dict):
                         candle = Candle(
-                            timestamp=datetime.fromtimestamp(item.get("time", 0)),
+                            timestamp=_server_ts_to_dt_utc(item.get("time", 0)),
                             open=float(item.get("open", 0)),
                             high=float(item.get("high", 0)),
                             low=float(item.get("low", 0)),
@@ -1272,7 +1324,7 @@ class AsyncPocketOptionClient:
                         candles.append(candle)
                     elif isinstance(item, (list, tuple)) and len(item) >= 6:
                         candle = Candle(
-                            timestamp=datetime.fromtimestamp(item[0]),
+                            timestamp=_server_ts_to_dt_utc(item[0]),
                             open=float(item[1]),
                             high=float(item[3]),
                             low=float(item[4]),
@@ -1408,3 +1460,128 @@ class AsyncPocketOptionClient:
 
         logger.error(f"All {max_attempts} reconnection attempts failed")
         return False
+
+    async def _handle_json_message(self, data: List[Any]) -> None:
+        if not data or len(data) < 1:
+            return
+
+        event_type = data[0]
+        event_data = data[1] if len(data) > 1 else {}
+
+        # Tratar eventos específicos
+        if event_type == "successauth":
+            await self._emit_event("authenticated", event_data)
+
+        elif event_type == "successupdateBalance":
+            await self._emit_event("balance_updated", event_data)
+
+        elif event_type == "successopenOrder":
+            await self._emit_event("order_opened", event_data)
+
+        elif event_type == "successcloseOrder":
+            await self._emit_event("order_closed", event_data)
+
+        elif event_type == "updateStream":
+            await self._emit_event("stream_update", event_data)
+
+        elif event_type == "loadHistoryPeriod":
+            await self._emit_event("candles_received", event_data)
+
+        elif event_type == "updateHistoryNew":
+            await self._emit_event("history_update", event_data)
+
+        # Adicione este bloco para tratar resposta de assets (payouts)
+        elif event_type == "assets":
+            # Processa dados de ativos (exemplo: event_data = {asset_id: {"payout": 80, "active": true, ...}})
+            payouts = {}
+            for asset_id_str, info in event_data.items():
+                try:
+                    asset_id = int(asset_id_str)
+                    asset_name = ASSET_IDS_TO_NAMES.get(asset_id)
+                    if asset_name:  # Apenas ativos da sua lista em constants.py
+                        payout = float(info.get("payout", 0))  # Ou use 'rate' se for o campo exato; ajuste se necessário
+                        if payout > 0:  # Filtra apenas abertos
+                            payouts[asset_name] = payout
+                except ValueError:
+                    continue  # Ignora IDs inválidos
+            
+            # Atualiza cache
+            self._payouts_cache = payouts
+            self._payouts_cache_timestamp = time.time()
+            
+            await self._emit_event("assets_received", payouts)  # Emite evento opcional
+
+        else:
+            await self._emit_event(
+                "unknown_event", {"type": event_type, "data": event_data}
+            )
+
+    async def get_payouts(self, assets: Optional[Union[str, List[str]]] = None) -> Union[Dict[str, float], List[float], float]:
+        """
+        Obtém payouts de ativos, filtrando apenas os abertos (payout > 0).
+        
+        Args:
+            assets: None para todos abertos (dict), lista para payouts em ordem (list), ou str para single (float).
+        
+        Returns:
+            Dict[str, float] | List[float] | float: Payouts filtrados.
+        
+        Raises:
+            ConnectionError: Se não conectado.
+            PocketOptionError: Se falha na request.
+        """
+        if not self._websocket.is_connected:
+            raise ConnectionError("Não conectado ao WebSocket")
+        
+        # Verifica cache primeiro (se fresco)
+        if self._payouts_cache_timestamp and time.time() - self._payouts_cache_timestamp < self._payouts_cache_ttl:
+            payouts = self._payouts_cache
+        else:
+            # Envia request para "assets" via WebSocket
+            try:
+                await self._send_message('42["assets"]')  # Mensagem para obter ativos/payouts
+                
+                # Espera resposta (usa evento "assets_received" com timeout)
+                done, pending = await asyncio.wait(
+                    [asyncio.create_task(self._wait_for_event("assets_received"))],
+                    timeout=10.0  # Timeout de 10s
+                )
+                if not done:
+                    raise TimeoutError("Timeout aguardando resposta de assets")
+                
+                # Payouts já atualizados no cache pelo handler
+                payouts = self._payouts_cache
+            except Exception as e:
+                await self._error_monitor.record_error(
+                    error_type="payout_request_failed",
+                    severity=ErrorSeverity.MEDIUM,
+                    category=ErrorCategory.DATA,
+                    message=str(e),
+                    context={"assets": assets}
+                )
+                raise PocketOptionError(f"Falha ao obter payouts: {e}")
+        
+        # Filtra e retorna baseado no input
+        if assets is None:
+            return payouts  # Todos abertos {asset: payout}
+        elif isinstance(assets, str):
+            return payouts.get(assets, 0.0)  # Single, 0 se fechado/não encontrado
+        elif isinstance(assets, list):
+            return [payouts.get(asset, 0.0) for asset in assets]  # Lista em ordem
+        else:
+            raise InvalidParameterError("Parâmetro 'assets' inválido")
+
+    async def _wait_for_event(self, event_name: str) -> Any:
+        """Helper para aguardar um evento específico (usado internamente)."""
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        
+        def callback(data):
+            if not future.done():
+                future.set_result(data)
+        
+        self._event_callbacks[event_name].append(callback)
+        try:
+            return await future
+        finally:
+            self._event_callbacks[event_name].remove(callback)
