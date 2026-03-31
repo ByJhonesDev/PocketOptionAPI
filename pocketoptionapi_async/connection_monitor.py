@@ -1,10 +1,40 @@
 """
-# Autor: ByJhonesDev
-# Função: ConnectionMonitor
-# Descrição:
-# - Monitor avançado de conexão para API da PocketOption
-# - Fornece métricas de desempenho em tempo real e snapshots
-# - Gera relatórios de diagnóstico e exporta métricas
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, com recursos auxiliares de observabilidade, diagnóstico e análise de desempenho para sessões em tempo real.
+
+Descrição:
+Módulo de monitoramento avançado voltado à análise operacional da conexão com a Pocket Option. Ele encapsula o cliente principal da biblioteca para coletar métricas de disponibilidade, tempo de resposta, volume de mensagens, erros, snapshots de desempenho e alertas em tempo real, além de gerar relatórios diagnósticos e exportar dados para análise externa.
+
+O que ele faz:
+- Inicializa o cliente principal em modo monitorado
+- Coleta métricas de conexão, desempenho e estabilidade da sessão
+- Mede tempos de resposta e registra snapshots periódicos
+- Monitora taxa de erros, throughput de mensagens e sucesso de conexão
+- Emite alertas operacionais com base em thresholds
+- Gera relatórios de diagnóstico e score de saúde da conexão
+- Exporta métricas para CSV e relatórios em JSON
+- Exibe estatísticas em tempo real via console para uso operacional
+
+Características:
+- Monitoramento assíncrono contínuo
+- Coleta histórica de métricas e eventos
+- Sistema de alertas para degradação operacional
+- Relatórios de saúde com recomendações automáticas
+- Suporte opcional a métricas locais de CPU e memória via psutil
+- Estrutura de snapshots e tendências históricas
+- Interface baseada em eventos para integração com observabilidade externa
+- Modo demonstrativo com display em tempo real
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- loguru
+- statistics
+- json
+- psutil (opcional)
+- pandas (opcional para exportação avançada)
+- Módulos internos do projeto:
+  - client
 """
 
 import asyncio
@@ -17,7 +47,7 @@ from collections import deque, defaultdict
 import statistics
 from loguru import logger
 
-from .client import AsyncPocketOptionClient
+from client import AsyncPocketOptionClient
 
 @dataclass
 class ConnectionMetrics:
