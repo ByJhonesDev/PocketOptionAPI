@@ -1,12 +1,47 @@
 """
-# Autor: ByJhonesDev 
-# Função: Ferramenta de Teste de Carga e Estresse
-# Descrição:
-# - Executa testes de carga e estresse na PocketOption Async API
-# - Simula clientes concorrentes e operações (saldo, velas, ping, mercado, ordens)
-# - Suporta conexão persistente via ConnectionKeepAlive e reconexão automática
-# - Mede latência, taxa de sucesso, vazão (ops/s) e picos por segundo
-# - Gera relatórios detalhados em JSON e resumo tabular opcional (tabulate)
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, desenvolvida para fornecer uma camada confiável, extensível, resiliente e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
+
+Descrição:
+Ferramenta assíncrona avançada de teste de carga e estresse construída sobre o cliente principal da PocketOptionAPI para validar resiliência, estabilidade, throughput, latência e comportamento operacional da sessão WebSocket em cenários de concorrência, reconexão e uso prolongado. O módulo simula múltiplos clientes, operações de mercado e fluxos de negociação para medir a capacidade da biblioteca em ambientes de automação, robôs, monitoramento e integrações de alta frequência.
+
+O que ele faz:
+- Autentica múltiplas sessões da Pocket Option para execução paralela de cenários de teste
+- Estabelece conexões WebSocket concorrentes com e sem persistência
+- Exercita rotinas de saldo, candles, ping, leitura de mercado e operações simuladas
+- Mede latência por operação, taxa de sucesso, vazão média e picos de operações por segundo
+- Executa testes de carga padrão e fases progressivas de stress test
+- Valida comportamento de reconexão e conexão persistente via keep-alive
+- Registra estatísticas operacionais por tipo de operação
+- Gera relatórios estruturados em JSON com métricas consolidadas
+- Exporta resultados simulados de trading em CSV para análise posterior
+- Produz recomendações automáticas com base em throughput, lentidão e taxa de erro
+
+Características:
+- Arquitetura assíncrona baseada em asyncio
+- Execução concorrente com múltiplos clientes simulados
+- Suporte a conexão persistente e reconexão automática
+- Instrumentação detalhada de métricas de performance
+- Logging limpo com supressão de ruído e deduplicação de eventos repetidos
+- Estrutura extensível para novos cenários de benchmark
+- Relatórios analíticos para testes comparativos
+- Integração com fluxo realtime da biblioteca principal
+- Compatível com cenários de validação para automações e serviços de monitoramento
+- Exportação opcional de dados tabulares e arquivos de apoio
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- csv
+- json
+- loguru
+- statistics
+- tabulate (opcional)
+- Módulos internos do projeto:
+  - constants
+  - models
+  - connection_keep_alive
+  - client
 """
 
 import sys
