@@ -1,42 +1,42 @@
-r"""
-# Autor: ByJhonesDev
-#
-# Projeto: Exemplo de Ordem — API Async PocketOption
-#
-# Função Geral:
-# - Conecta em conta DEMO usando SSID
-# - Obter saldo e dados de mercado (velas)
-# - Enviar 1 ordem automática (CALL por padrão) com duração de 60s, aguardar expiração e calcular lucro real.
-# - Salvar o resultado no arquivo de histórico.
-# - Converter automaticamente booleanos para “Sim/Não” nas Estatísticas de Conexão.
-#
-# Principais Características do Log:
-# - Sessões: Resultados anteriores, Autenticação e Conexão, Dados de Mercado (Última Vela),
-# Estatísticas de Conexão (True/False → Sim/Não), Operações Automáticas e Finalização.
-#
-# Entradas/Saídas:
-# - Entradas: nenhuma via stdin (SSID é fixo no código; ativo, valor, direção e duração via constantes).
-# - Saídas: prints estruturados em PT-BR e gravação de uma linha por operação no arquivo de resultados.
-#
-# Configurações Importantes:
-# - SSID_FIXO: SSID DEMO já definido no código.
-# - LOGS_DIR / RESULTADOS_FILE: caminhos de logs/resultados.
-# - ASSET, AMOUNT, DIRECTION, DURATION, MAX_RETRIES: parâmetros da ordem.
-#
-# Dependências:
-# - Python 3.10+
-# - pocketoptionapi_async (AsyncPocketOptionClient, OrderDirection)
-# - pandas
-#
-# Segurança:
-# - SSID é sensível. Evite publicar/commitar este arquivo com SSID real.
-# - Operar sempre em conta DEMO para testes antes de qualquer uso real.
-#
-# Observações:
-# - O SDK interno do cliente foi mantido com enable_logging=False para reduzir ruído.
-# - O cálculo de lucro real usa a diferença de saldo após a expiração.
-# - Caso o check_win atinja timeout, o log informa e mantém o fluxo com o lucro calculado.
 """
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, desenvolvida para fornecer uma camada confiável, extensível, resiliente e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
+
+Descrição:
+Exemplo assíncrono de operação automatizada utilizando o cliente principal da PocketOptionAPI para autenticar uma sessão demo, consultar saldo, ler dados de mercado, enviar uma ordem e acompanhar o ciclo completo da negociação até o resultado final. O módulo demonstra, de forma prática, como consumir a biblioteca em scripts operacionais, validar conectividade da sessão e registrar resultados de trading com segurança.
+
+O que ele faz:
+- Autentica uma sessão demo da Pocket Option usando SSID fixo
+- Estabelece conexão WebSocket com o broker
+- Consulta saldo atual da conta
+- Solicita candles do ativo configurado e obtém também DataFrame com pandas
+- Coleta estatísticas de conexão e estado da sessão
+- Envia uma ordem automática com ativo, valor, direção e duração configuráveis
+- Aguarda a expiração da operação e consulta o resultado final
+- Calcula lucro ou prejuízo real pela diferença entre saldo inicial e final
+- Persiste o resultado da operação em arquivo de histórico
+- Exibe um fluxo completo e legível de execução no console em PT-BR
+
+Características:
+- Arquitetura assíncrona baseada em asyncio
+- Exemplo prático de uso ponta a ponta da biblioteca
+- Integração com candles e análise tabular via pandas
+- Registro local de resultados operacionais
+- Tratamento de timeout na verificação de resultado
+- Logging visual orientado a execução manual
+- Conversão amigável de estados booleanos para exibição
+- Estrutura útil para testes, laboratório e automações iniciais
+- Foco em conta demo para validação segura
+- Demonstração clara do ciclo de vida de uma ordem
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- pandas
+- Módulos internos do projeto:
+  - pocketoptionapi_async
+"""
+
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 import asyncio
 import pandas as pd
