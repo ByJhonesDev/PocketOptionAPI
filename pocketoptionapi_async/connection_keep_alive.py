@@ -1,10 +1,38 @@
 """
-# Autor: ByJhonesDev
-# Função: ConnectionKeepAlive
-# Descrição:
-# - Gerenciador de conexão keep-alive assíncrono para API da PocketOption
-# - Suporta reconexão automática, monitoramento de saúde e tratamento de eventos
-# - Mantém compatibilidade com padrões da API antiga
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, fornecendo uma camada resiliente de conectividade, autenticação e manutenção de sessão para automações e processamento de eventos em tempo real.
+
+Descrição:
+Módulo responsável pelo gerenciamento de conexões persistentes com keep-alive automático para a Pocket Option. Implementa uma camada de sustentação de sessão baseada em WebSocket com suporte a handshake manual, autenticação, ping contínuo, recepção de mensagens, monitoramento de saúde, fallback entre regiões e reconexão automática, preservando compatibilidade com o comportamento esperado da API legada.
+
+O que ele faz:
+- Estabelece conexão persistente com a Pocket Option usando múltiplas regiões de fallback
+- Executa handshake Socket.IO e autenticação inicial com SSID
+- Mantém a sessão viva com envio periódico de ping
+- Monitora recebimento de mensagens e estado do WebSocket
+- Detecta quedas de conexão e tenta reconectar automaticamente
+- Emite eventos de conexão, reconexão, autenticação e recebimento de mensagens
+- Coleta estatísticas operacionais da sessão
+- Fornece fluxo de desligamento limpo com cancelamento das tarefas em segundo plano
+
+Características:
+- Arquitetura assíncrona baseada em asyncio
+- Keep-alive contínuo com ping manual
+- Reconexão automática com rotação entre endpoints
+- Monitoramento de saúde da conexão
+- Interface baseada em eventos
+- Compatibilidade com padrões da API antiga
+- Estatísticas detalhadas de conexão e mensagens
+- Estrutura preparada para uso persistente em bots e serviços long-running
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- loguru
+- websockets
+- Módulos internos do projeto:
+  - models
+  - constants
 """
 
 import asyncio
