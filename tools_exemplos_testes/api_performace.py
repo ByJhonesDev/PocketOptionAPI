@@ -1,38 +1,41 @@
 """
-# Autor: ByJhonesDev
-# Projeto: Testes de Performance — API Async PocketOption
-# Função: Benchmark de conexão, ordens, leitura de dados e concorrência
-# Descrição:
-# - Cria a classe `PerformanceTester` para medir tempos e taxa de sucesso em:
-#   1) Estabelecimento de conexão (várias iterações)
-#   2) Colocação de ordens (mock real via conta demo/real)
-#   3) Recuperação de dados (saldo, candles, ordens ativas)
-#   4) Operações concorrentes (várias conexões em paralelo)
-# - Gera um relatório consolidado (médias, mínimos, máximos, desvio padrão,
-#   operações/segundo e taxa de sucesso) e salva em arquivo de texto.
-# - Usa `loguru` para logging detalhado em PT-BR, com mensagens de sucesso/erro.
-#
-# Entradas/I/O:
-# - SSID é carregado automaticamente de ./GET_SSID/SSID_DEMO.txt (ou outro nome),
-#   com fallback hardcoded APENAS para testes locais (NÃO usar em produção).
-# - Saída: Relatório salvo como "performance_da_api.txt" no diretório atual.
-#
-# Dependências:
-# - Python 3.10+
-# - loguru
-# - pocketoptionapi_async  (AsyncPocketOptionClient, OrderDirection)
-#
-# Configurações principais:
-# - `is_demo` (bool): define conta demo (True) ou real (False)
-# - Iterações e níveis de concorrência são parametrizados nos métodos
-#   (ex.: `test_connection_performance(iterations=5)`,
-#         `test_order_placement_performance(iterations=10)`,
-#         `test_concurrent_operations(concurrency_level=5)`).
-#
-# Observações importantes:
-# - O SSID é sensível. Não faça commit do arquivo GET_SSID/* nem de fallbacks.
-# - Testes de ordens em conta real podem gerar custos — use demo enquanto valida.
-# - O ativo padrão do teste de ordens é "EURUSD_otc"; ajuste conforme necessário.
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, desenvolvida para fornecer uma camada confiável, extensível, resiliente e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
+
+Descrição:
+Ferramenta assíncrona de benchmark e avaliação de desempenho da PocketOptionAPI, projetada para medir tempos de resposta, taxa de sucesso e comportamento operacional do cliente em cenários reais de conexão, leitura de dados, envio de ordens e concorrência. O módulo fornece uma visão prática da eficiência da biblioteca em tarefas comuns de automação e ajuda a validar estabilidade antes do uso em produção.
+
+O que ele faz:
+- Carrega SSID de arquivos locais para autenticação de sessão
+- Mede o tempo de estabelecimento de conexão em múltiplas iterações
+- Avalia a performance de envio de ordens em conta demo ou real
+- Mede tempos de recuperação de saldo, candles e ordens ativas
+- Executa operações concorrentes para avaliar comportamento sob paralelismo
+- Calcula média, mínimo, máximo, desvio padrão e taxa de sucesso
+- Estima operações por segundo em cenários de ordem e concorrência
+- Consolida os resultados em relatório textual legível
+- Salva o relatório final em arquivo para análise posterior
+- Fornece feedback operacional por logging detalhado em PT-BR
+
+Características:
+- Arquitetura assíncrona baseada em asyncio
+- Benchmark focado em cenários reais de uso da API
+- Medição objetiva de latência e confiabilidade
+- Logging estruturado com loguru
+- Suporte a conta demo e possibilidade de adaptação para conta real
+- Estrutura simples para expansão de novos testes
+- Saída textual amigável para validação rápida
+- Uso direto do cliente assíncrono principal da biblioteca
+- Reaproveitamento de SSID extraído localmente
+- Ferramenta útil para validação pré-produção
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- statistics
+- loguru
+- Módulos internos do projeto:
+  - pocketoptionapi_async
 """
 
 import asyncio
