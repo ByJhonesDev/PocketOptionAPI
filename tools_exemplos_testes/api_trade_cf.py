@@ -1,32 +1,40 @@
 """
 Autor: ByJhonesDev
-Função:
-- Carrega o SSID (REAL/DEMO) do ambiente ou dos arquivos GET_SSID/SSID_REAL.txt ou
-  GET_SSID/SSID_DEMO.txt, monta os headers (User-Agent, Origin, Referer e Cookie com
-  ssid + cookies do Cloudflare) e estabelece uma conexão WebSocket (Socket.IO) com a
-  PocketOption usando AsyncPocketOptionClient. Após conectar, consulta velas de 1m
-  (EURUSD_otc) e encerra a sessão.
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, desenvolvida para fornecer uma camada confiável, extensível, resiliente e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
 
-Destaques:
-- Usa dotenv (load_dotenv) para ler variáveis do .env com override=True.
-- Determina o modo da conta via PO_ACCOUNT_MODE (REAL/PRACTICE) e seleciona o SSID
-  pelas variáveis POCKET_OPTION_SSID_REAL/POCKET_OPTION_SSID_DEMO ou arquivos fallback.
-- Injeta cookies extras do Cloudflare via PO_EXTRA_COOKIES ou arquivo GET_SSID/CF_COOKIES.txt.
-- Constrói headers HTTP completos: User-Agent (PO_WS_UA), Origin/Referer (PO_WS_ORIGIN) e Cookie.
-- Parâmetros do cliente configuráveis por ambiente:
-  - ws_http_base (PO_WS_HTTP_BASE, padrão https://api-c.po.market)
-  - socketio_path (PO_SOCKETIO_PATH, padrão /socket.io)
-  - is_demo deduzido de PO_ACCOUNT_MODE
-  - headers_extra com SSID + cookies
-- Fluxo com validações explícitas:
-  - Aborta se não houver SSID (orienta rodar get_ssid_demo.py/real.py).
-  - Aborta se connect() retornar falso (indica revisar SSID/cookies/host).
-- Consulta de dados:
-  - Busca candles de 60s para o ativo "EURUSD_otc" e informa a quantidade recebida.
-- Organização do projeto:
-  - Ajusta REPO_ROOT e sys.path para importar client (pocketoptionapi_async/client.py).
-- Assíncrono/limpeza:
-  - Usa asyncio.run(main()), desconecta de forma graciosa e imprime status final.
+Descrição:
+Script assíncrono de validação de conectividade avançada da PocketOptionAPI com montagem explícita de headers HTTP e cookies complementares para cenários em que a autenticação WebSocket depende não apenas do SSID, mas também de informações adicionais de navegador, origem e cookies auxiliares. O módulo é útil para depuração de sessão, compatibilidade com ambientes protegidos e testes controlados de handshake com a infraestrutura do broker.
+
+O que ele faz:
+- Carrega SSID real ou demo a partir de variáveis de ambiente ou arquivos locais
+- Determina automaticamente o modo da conta com base na configuração do ambiente
+- Lê cookies adicionais de apoio, incluindo dados auxiliares de Cloudflare
+- Monta headers HTTP completos com User-Agent, Origin, Referer e Cookie
+- Inicializa o cliente assíncrono com base e path de Socket.IO configuráveis
+- Estabelece conexão WebSocket com parâmetros extras de autenticação
+- Valida falha explícita de sessão quando SSID ou handshake não são aceitos
+- Consulta candles de 1 minuto para validar leitura de dados após conexão
+- Encerra a sessão de forma graciosa após o teste
+- Facilita troubleshooting de conexão em cenários mais sensíveis de autenticação
+
+Características:
+- Arquitetura assíncrona baseada em asyncio
+- Suporte a configuração por .env
+- Montagem explícita de headers e cookies
+- Compatibilidade com conta demo e real
+- Foco em depuração e validação de handshake
+- Estrutura simples e objetiva para testes de conectividade
+- Reaproveitamento do cliente principal da biblioteca
+- Ajuste de host HTTP base e path de Socket.IO
+- Fail-fast quando credenciais ou sessão estão inválidas
+- Útil para homologação e diagnóstico de bloqueios de conexão
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- python-dotenv
+- Módulos internos do projeto:
+  - client
 """
 
 import os, sys, asyncio
