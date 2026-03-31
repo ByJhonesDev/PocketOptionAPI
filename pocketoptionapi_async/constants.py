@@ -1,14 +1,113 @@
 """
-# Autor: ByJhonesDev
-# Função: Configurações e Constantes
-# Descrição:
-# - Define constantes para a API da PocketOption
-# - Inclui mapeamento de ativos, regiões WebSocket e prazos
-# - Configura limites da API e cabeçalhos padrão
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, com centralização de parâmetros estáticos, mapeamentos operacionais e utilitários de normalização.
+
+Descrição:
+Módulo central de constantes e definições estruturais da biblioteca. Reúne configurações padrão de conexão, headers WebSocket, timeframes, limites operacionais, catálogo base mínimo de ativos, aliases de tipos, mapeamento de eventos do broker e endpoints regionais, servindo como base estável para os demais módulos da API.
+
+O que ele faz:
+- Centraliza headers padrão de conexão WebSocket
+- Define parâmetros default de timeout, ping e reconexão
+- Mapeia timeframes entre rótulos legíveis e segundos
+- Define limites operacionais básicos da API
+- Mantém um catálogo base mínimo de ativos e IDs
+- Fornece aliases e normalização de tipos de ativos
+- Mapeia eventos brutos do broker para eventos internos padronizados
+- Centraliza endpoints regionais da Pocket Option
+- Disponibiliza helpers de normalização para ativos, payout, status e timeframe
+
+Características:
+- Fonte central de configuração estática da biblioteca
+- Redução de duplicidade e inconsistência entre módulos
+- Compatibilidade com eventos brutos e aliases do broker
+- Catálogo mínimo pronto para fallback e validação
+- Helpers reutilizáveis de normalização sem dependência externa
+- Classe dedicada para gerenciamento de regiões WebSocket
+- Estrutura extensível para novos ativos, eventos e endpoints
+
+Requisitos:
+- Python 3.10+
+- typing
+- random
 """
-from typing import Dict, List, Optional
+
+from __future__ import annotations
+
 import random
-# Mapeamento de ativos com seus respectivos IDs
+from typing import Any, Dict, List, Optional
+
+# -----------------------------------------------------------------------------
+# Headers / connection defaults
+# -----------------------------------------------------------------------------
+
+DEFAULT_HEADERS: Dict[str, str] = {
+    "Origin": "https://pocketoption.com",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+}
+
+CONNECTION_SETTINGS: Dict[str, Any] = {
+    "ping_interval": 20,
+    "ping_timeout": 10,
+    "close_timeout": 10,
+    "message_timeout": 30,
+    "max_reconnect_attempts": 5,
+    "reconnect_delay": 5,
+    "handshake_timeout": 10,
+    "connect_timeout": 10,
+}
+
+# -----------------------------------------------------------------------------
+# Timeframes completos
+# -----------------------------------------------------------------------------
+
+TIMEFRAMES: Dict[str, int] = {
+    "1s": 1,
+    "5s": 5,
+    "10s": 10,
+    "15s": 15,
+    "30s": 30,
+    "1m": 60,
+    "2m": 120,
+    "3m": 180,
+    "5m": 300,
+    "10m": 600,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "8h": 28800,
+    "1d": 86400,
+    "1w": 604800,
+}
+
+TIMEFRAMES_BY_SECONDS: Dict[int, str] = {value: key for key, value in TIMEFRAMES.items()}
+
+# -----------------------------------------------------------------------------
+# Limites de operação
+# -----------------------------------------------------------------------------
+
+API_LIMITS: Dict[str, Any] = {
+    "min_order_amount": 1,
+    "max_order_amount": 10000,
+    "min_duration": 5,
+    "max_duration": 3600,
+    "max_concurrent_orders": 50,
+}
+
+# -----------------------------------------------------------------------------
+# Catálogo base mínimo compatível
+# Observação:
+# - isso não deve ser tratado como catálogo completo da corretora
+# - o catálogo real deve vir do WebSocket em tempo real
+# -----------------------------------------------------------------------------
+
 ASSETS: Dict[str, int] = {
  # Mercado Aberto
  # Pares Forex Principais
@@ -226,85 +325,226 @@ ASSETS: Dict[str, int] = {
  "SP500": 321, # S&P 500
 }
 
-# Regiões WebSocket com suas URLs
+ASSET_IDS_TO_NAMES: Dict[int, str] = {v: k for k, v in ASSETS.items()}
+ASSET_NAMES_TO_IDS: Dict[str, int] = {k: v for k, v in ASSETS.items()}
+
+# -----------------------------------------------------------------------------
+# Tipos de ativos / aliases
+# -----------------------------------------------------------------------------
+
+ASSET_TYPES: Dict[str, str] = {
+    "forex": "forex",
+    "crypto": "crypto",
+    "commodity": "commodity",
+    "commodities": "commodity",
+    "index": "index",
+    "indices": "index",
+    "stock": "stock",
+    "stocks": "stock",
+    "otc": "otc",
+    "digital": "digital",
+    "cfd": "cfd",
+    "etf": "etf",
+    "unknown": "unknown",
+}
+
+ASSET_TYPE_ALIASES: Dict[str, str] = {
+    "fx": "forex",
+    "forex": "forex",
+    "crypto": "crypto",
+    "cryptocurrency": "crypto",
+    "commodities": "commodity",
+    "commodity": "commodity",
+    "index": "index",
+    "indices": "index",
+    "stock": "stock",
+    "stocks": "stock",
+    "otc": "otc",
+    "digital": "digital",
+    "cfd": "cfd",
+    "etf": "etf",
+}
+
+# -----------------------------------------------------------------------------
+# Eventos do broker / aliases
+# -----------------------------------------------------------------------------
+
+BROKER_EVENT_MAP: Dict[str, str] = {
+    # auth
+    "successauth": "authenticated",
+    "authenticated": "authenticated",
+    "auth": "authenticated",
+
+    # balance
+    "successupdateBalance": "balance_updated",
+    "balance_updated": "balance_updated",
+    "balance_data": "balance_updated",
+    "getBalance": "balance_updated",
+
+    # order
+    "successopenOrder": "order_opened",
+    "order_opened": "order_opened",
+    "openOrder": "order_opened",
+    "successcloseOrder": "order_closed",
+    "order_closed": "order_closed",
+    "closeOrder": "order_closed",
+
+    # stream / candles
+    "updateStream": "stream_update",
+    "stream_update": "stream_update",
+    "loadHistoryPeriod": "candles_received",
+    "candles_received": "candles_received",
+    "updateHistoryNew": "history_update",
+    "history_update": "history_update",
+
+    # assets / payouts
+    "assets": "assets",
+    "assets_received": "assets",
+    "getAssets": "assets",
+    "loadAssets": "assets",
+    "payout_update": "payout_update",
+
+    # misc
+    "server_time": "server_time",
+    "news": "news_update",
+    "limits": "account_limits",
+    "account_config": "account_config",
+}
+
+# eventos que normalmente devem ser preservados mesmo se desconhecidos
+PASS_THROUGH_EVENTS = {
+    "authenticated",
+    "balance_updated",
+    "balance_data",
+    "order_opened",
+    "order_closed",
+    "stream_update",
+    "candles_received",
+    "history_update",
+    "assets",
+    "assets_received",
+    "payout_update",
+    "unknown_event",
+    "json_data",
+    "raw_message",
+}
+
+# -----------------------------------------------------------------------------
+# Regiões WebSocket
+# -----------------------------------------------------------------------------
+
 class Regions:
-    """Endpoints de regiões WebSocket"""
-    _REGIONS = {
+    _REGIONS: Dict[str, str] = {
         "EUROPA": "wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket",
         "SEYCHELLES": "wss://api-sc.po.market/socket.io/?EIO=4&transport=websocket",
         "HONGKONG": "wss://api-hk.po.market/socket.io/?EIO=4&transport=websocket",
-        "SERVER1": "wss://api-spb.po.market/socket.io/?EIO=4&transport=websocket",
-        "FRANCE2": "wss://api-fr2.po.market/socket.io/?EIO=4&transport=websocket",
-        "UNITED_STATES4": "wss://api-us4.po.market/socket.io/?EIO=4&transport=websocket",
-        "UNITED_STATES3": "wss://api-us3.po.market/socket.io/?EIO=4&transport=websocket",
-        "UNITED_STATES2": "wss://api-us2.po.market/socket.io/?EIO=4&transport=websocket",
+        "USA": "wss://api-us.po.market/socket.io/?EIO=4&transport=websocket",
         "DEMO": "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
-        "DEMO_2": "wss://try-demo-eu.po.market/socket.io/?EIO=4&transport=websocket",
-        "UNITED_STATES": "wss://api-us-north.po.market/socket.io/?EIO=4&transport=websocket",
-        "RUSSIA": "wss://api-msk.po.market/socket.io/?EIO=4&transport=websocket",
-        "SERVER2": "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
-        "INDIA": "wss://api-in.po.market/socket.io/?EIO=4&transport=websocket",
-        "FRANCE": "wss://api-fr.po.market/socket.io/?EIO=4&transport=websocket",
-        "FINLAND": "wss://api-fin.po.market/socket.io/?EIO=4&transport=websocket",
-        "SERVER3": "wss://api-c.po.market/socket.io/?EIO=4&transport=websocket",
-        "ASIA": "wss://api-asia.po.market/socket.io/?EIO=4&transport=websocket",
-        "SERVER4": "wss://api-us-south.po.market/socket.io/?EIO=4&transport=websocket",
     }
+
+    @classmethod
+    def get_all_regions(cls) -> Dict[str, str]:
+        return dict(cls._REGIONS)
+
+    @classmethod
+    def get_region(cls, name: str) -> Optional[str]:
+        if not name:
+            return None
+        return cls._REGIONS.get(str(name).upper())
+
     @classmethod
     def get_all(cls, randomize: bool = True) -> List[str]:
-        """Obter todas as URLs de regiões"""
         urls = list(cls._REGIONS.values())
         if randomize:
             random.shuffle(urls)
         return urls
-    @classmethod
-    def get_all_regions(cls) -> Dict[str, str]:
-        """Obter todas as regiões como dicionário"""
-        return cls._REGIONS.copy()
-    from typing import Optional
-    @classmethod
-    def get_region(cls, region_name: str) -> Optional[str]:
-        """Obter URL de uma região específica"""
-        return cls._REGIONS.get(region_name.upper())
+
     @classmethod
     def get_demo_regions(cls) -> List[str]:
-        """Obter URLs de regiões demo"""
-        return [url for name, url in cls._REGIONS.items() if "DEMO" in name]
-# Constantes globais
+        return [v for k, v in cls._REGIONS.items() if "DEMO" in k.upper()]
+
+    @classmethod
+    def get_live_regions(cls, randomize: bool = True) -> List[str]:
+        urls = [v for k, v in cls._REGIONS.items() if "DEMO" not in k.upper()]
+        if randomize:
+            random.shuffle(urls)
+        return urls
+
+    @classmethod
+    def has_region(cls, name: str) -> bool:
+        if not name:
+            return False
+        return str(name).upper() in cls._REGIONS
+
 REGIONS = Regions()
-# Prazos (em segundos)
-TIMEFRAMES = {
-    "1m": 60,
-    "5m": 300,
-    "15m": 900,
-    "30m": 1800,
-    "1h": 3600,
-    "4h": 14400,
-    "1d": 86400,
-    "1w": 604800,
-}
-# Configurações de conexão
-CONNECTION_SETTINGS = {
-    "ping_interval": 20, # segundos
-    "ping_timeout": 10, # segundos
-    "close_timeout": 10, # segundos
-    "max_reconnect_attempts": 5,
-    "reconnect_delay": 5, # segundos
-    "message_timeout": 30, # segundos
-}
-# Limites da API
-API_LIMITS = {
-    "min_order_amount": 1.0,
-    "max_order_amount": 50000.0,
-    "min_duration": 5, # segundos
-    "max_duration": 43200, # 12 horas em segundos
-    "max_concurrent_orders": 10,
-    "rate_limit": 100, # requisições por minuto
-}
-# Cabeçalhos padrão
-DEFAULT_HEADERS = {
-    "Origin": "https://pocketoption.com",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-}
-# Mapeamento reverso: ID para nome do ativo (para facilitar parsing de respostas da API)
-ASSET_IDS_TO_NAMES: Dict[int, str] = {v: k for k, v in ASSETS.items()}
+
+# -----------------------------------------------------------------------------
+# Helpers de normalização
+# -----------------------------------------------------------------------------
+
+def normalize_payout(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        payout = float(value)
+    except Exception:
+        return None
+
+    if 0 < payout <= 1:
+        payout *= 100.0
+
+    return round(payout, 2)
+
+
+def normalize_asset_symbol(symbol: Any) -> str:
+    raw = str(symbol or "").strip().upper()
+    raw = raw.replace("#", "").replace("/", "")
+    if " OTC" in raw:
+        raw = raw.replace(" OTC", "_otc")
+    elif raw.endswith("_OTC"):
+        raw = raw[:-4] + "_otc"
+    return raw
+
+
+def normalize_asset_type(asset_type: Any) -> str:
+    raw = str(asset_type or "").strip().lower()
+    return ASSET_TYPE_ALIASES.get(raw, raw or "unknown")
+
+
+def normalize_open_value(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    normalized = str(value).strip().lower()
+    if normalized in {"open", "opened", "available", "active", "tradable", "enabled", "1", "true", "yes", "on"}:
+        return True
+    if normalized in {"closed", "close", "unavailable", "inactive", "disabled", "0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def timeframe_to_seconds(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+
+    if isinstance(value, int):
+        return value
+
+    raw = str(value).strip().lower()
+    return TIMEFRAMES.get(raw)
+
+
+def seconds_to_timeframe(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+
+    try:
+        seconds = int(value)
+    except Exception:
+        return None
+
+    return TIMEFRAMES_BY_SECONDS.get(seconds)
