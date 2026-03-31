@@ -1,9 +1,28 @@
 """
-# Autor: ByJhonesDev
-# Função: Exceções Personalizadas
-# Descrição:
-# - Define exceções personalizadas para a API da PocketOption
-# - Inclui erros para conexão, autenticação, ordens, timeout, parâmetros inválidos e WebSocket
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, com uma hierarquia padronizada de exceções para tratamento seguro de falhas operacionais.
+
+Descrição:
+Módulo responsável pela definição das exceções personalizadas da biblioteca. Fornece uma hierarquia consistente de erros para conexão, autenticação, ordens, timeout, validação de parâmetros e operações WebSocket, permitindo tratamento estruturado de falhas e melhor integração com logs, monitoramento e fluxos de retry.
+
+O que ele faz:
+- Define a exceção base da biblioteca
+- Padroniza erros relacionados à conexão
+- Padroniza erros de autenticação e sessão
+- Padroniza erros de ordens e negociação
+- Padroniza erros de timeout operacional
+- Padroniza erros de validação de parâmetros
+- Padroniza erros específicos de transporte WebSocket
+
+Características:
+- Hierarquia simples e clara
+- Exceção base reutilizável em toda a biblioteca
+- Suporte a mensagem e código de erro opcional
+- Facilita tratamento especializado por tipo de falha
+- Melhora observabilidade e consistência de erros
+
+Requisitos:
+- Python 3.10+
 """
 
 class PocketOptionError(Exception):
