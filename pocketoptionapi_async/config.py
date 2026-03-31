@@ -1,10 +1,31 @@
 """
-# Autor: ByJhonesDev
-# Função: Configuração Geral
-# Descrição:
-# - Gerencia configurações para a API assíncrona da PocketOption
-# - Define parâmetros para conexão WebSocket, negociação e logging
-# - Suporta carregamento de configurações via variáveis de ambiente
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, fornecendo uma camada confiável, configurável e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
+
+Descrição:
+Módulo responsável pela centralização e gerenciamento de todas as configurações da biblioteca, incluindo parâmetros de conexão WebSocket, regras operacionais de negociação e controle de logging. A estrutura utiliza dataclasses para organização tipada e permite sobrescrita dinâmica via variáveis de ambiente, facilitando a adaptação em diferentes ambientes (desenvolvimento, produção, containers, CI/CD).
+
+O que ele faz:
+- Define configurações de conexão WebSocket (ping, timeout, reconexão e limites)
+- Define regras operacionais de trading (valores mínimos/máximos, duração e concorrência)
+- Define parâmetros de logging (nível, formato, rotação e retenção)
+- Carrega automaticamente configurações via variáveis de ambiente (ENV override)
+- Fornece uma interface unificada para acesso às configurações da aplicação
+- Exporta as configurações em formato dicionário para integração com outros módulos
+
+Características:
+- Estrutura tipada com dataclasses (melhor manutenção e clareza)
+- Separação lógica por domínio: conexão, trading e logging
+- Suporte a configuração dinâmica via variáveis de ambiente
+- Valores padrão seguros e prontos para uso
+- Instância global de configuração para acesso centralizado
+- Fácil extensão para novos parâmetros sem quebrar compatibilidade
+
+Requisitos:
+- Python 3.10+
+- dataclasses
+- typing
+- os (variáveis de ambiente)
 """
 
 import os
