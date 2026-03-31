@@ -1,10 +1,35 @@
 """
-# Autor: ByJhonesDev
-# Função: ErrorMonitor e HealthChecker
-# Descrição:
-# - Sistema avançado de monitoramento e tratamento de erros para API da PocketOption
-# - Inclui enums para severidade/categoria, circuit breaker e retry policy
-# - Monitora saúde do sistema com alertas e relatórios
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, com mecanismos internos de observabilidade, resiliência e proteção operacional.
+
+Descrição:
+Módulo dedicado ao monitoramento de erros, execução resiliente e verificação de saúde do sistema. Implementa estruturas para classificação de falhas, registro de eventos de erro, políticas de retry, circuit breaker, callbacks de alerta e health checks periódicos, permitindo que a biblioteca opere com maior robustez em cenários de instabilidade de rede, autenticação, dados ou execução.
+
+O que ele faz:
+- Classifica erros por severidade e categoria
+- Registra eventos de erro com contexto operacional
+- Detecta padrões de erro e dispara alertas
+- Implementa circuit breaker para operações críticas
+- Implementa política de retry com backoff exponencial e jitter
+- Executa operações com monitoramento e proteção opcional
+- Monitora a saúde de serviços internos por checks assíncronos
+- Gera relatórios consolidados de saúde do sistema
+
+Características:
+- Sistema de observabilidade interno da biblioteca
+- Estrutura extensível para alertas e callbacks externos
+- Proteção operacional com retry e circuit breaker
+- Registro histórico de erros com contexto
+- Monitoramento contínuo de saúde de serviços
+- Instâncias globais prontas para integração com o restante do projeto
+
+Requisitos:
+- Python 3.10+
+- asyncio
+- loguru
+- dataclasses
+- enum
+- collections
 """
 
 import asyncio
