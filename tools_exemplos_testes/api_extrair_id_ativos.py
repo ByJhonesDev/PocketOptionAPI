@@ -1,12 +1,44 @@
-# Autor: ByJhonesDev
-# Função: Extração de IDs de Ativos da PocketOption via WebSocket (Foco em Conta Real com Base64)
-# Descrição:
-# - Automatiza o login na plataforma PocketOption e navega até a página de negociação real.
-# - Captura payloads WebSocket, detecta e decodifica base64 para extrair listas de ativos.
-# - Extrai IDs e nomes de ativos (Incluindo OTC)
-# - Salva os IDs extraídos em assets_ids.json e o código formatado em updated_assets.py.
-# - Utiliza Selenium WebDriver com Chrome para navegação e captura de logs de performance.
-# - Inclui logging estruturado em PT-BR com emojis e formato de data.
+"""
+Autor: ByJhonesDev
+Projeto: PocketOptionAPI – Biblioteca Python assíncrona de alto nível para integração com a corretora Pocket Option, desenvolvida para fornecer uma camada confiável, extensível, resiliente e orientada a eventos para automação operacional e processamento de dados de mercado em tempo real.
+
+Descrição:
+Ferramenta de apoio responsável por extrair, normalizar e consolidar os identificadores internos de ativos disponibilizados pela Pocket Option a partir do tráfego WebSocket capturado durante a navegação autenticada na plataforma. O módulo automatiza a coleta de payloads, decodifica mensagens base64, interpreta listas de ativos e gera artefatos auxiliares usados para manter o mapeamento interno da biblioteca atualizado e compatível com o broker.
+
+O que ele faz:
+- Automatiza o acesso à plataforma Pocket Option via navegador controlado
+- Aguarda autenticação manual do usuário e navega até o ambiente de negociação
+- Captura frames WebSocket recebidos e enviados durante a sessão
+- Detecta payloads codificados em base64 e realiza a decodificação defensiva
+- Extrai IDs e nomes de ativos, incluindo instrumentos OTC
+- Normaliza nomes, corrige duplicidades e padroniza símbolos
+- Mescla os dados extraídos com uma base local de ativos conhecidos
+- Gera arquivo JSON com IDs extraídos para auditoria e reaproveitamento
+- Gera arquivo Python formatado com o dicionário atualizado de ativos
+- Salva payloads brutos e payload decodificado para depuração e análise futura
+
+Características:
+- Automação de navegação com Selenium WebDriver
+- Captura de logs de performance do navegador
+- Decodificação de payloads WebSocket em JSON e base64
+- Normalização defensiva de símbolos e ativos OTC
+- Geração automática de artefatos auxiliares do projeto
+- Logging estruturado em PT-BR
+- Estrutura preparada para revisão manual de payloads
+- Mesclagem controlada com mapeamentos existentes
+- Útil para manutenção evolutiva do catálogo de ativos da biblioteca
+- Facilita compatibilidade futura com mudanças do broker
+
+Requisitos:
+- Python 3.10+
+- selenium
+- json
+- base64
+- logging
+- Módulos internos do projeto:
+  - get_driver
+"""
+
 import os
 import json
 import time
