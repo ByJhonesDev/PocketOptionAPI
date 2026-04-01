@@ -40,10 +40,12 @@ Requisitos:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -94,7 +96,9 @@ def parse_account_mode(raw: str) -> str:
 
 def parse_order_direction(raw: str) -> OrderDirection:
     normalized = (raw or "COMPRAR").strip().upper()
-    return OrderDirection.PUT if normalized == "PUT" else OrderDirection.CALL
+    if normalized in {"PUT", "VENDER", "VENDA"}:
+        return OrderDirection.PUT
+    return OrderDirection.CALL
 
 
 def parse_first_asset() -> str:
@@ -148,12 +152,62 @@ Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
 
 
 # =========================
+# Modelos simples auxiliares
+# =========================
+class SimpleBalance:
+    def __init__(self, balance: float, currency: str = "USD", is_demo: bool = True):
+        self.balance = balance
+        self.currency = currency
+        self.is_demo = is_demo
+
+
+# =========================
 # Utilidades de Log / Formatação
 # =========================
 def bool_pt(value: Any) -> Any:
     if isinstance(value, bool):
         return "Sim" if value else "Não"
     return value
+
+
+def safe_text(value: Any, fallback: str = "-") -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    return text if text else fallback
+
+
+def direction_to_pt(direction: Any) -> str:
+    value = getattr(direction, "name", str(direction)).upper()
+    if value == "PUT":
+        return "VENDER"
+    return "COMPRAR"
+
+
+def normalize_status_pt(status: Any) -> str:
+    raw = str(status or "").strip().lower()
+
+    status_map = {
+        "active": "Ativo",
+        "opened": "Ativo",
+        "open": "Ativo",
+        "pending": "Pendente",
+        "pendente": "Pendente",
+        "ativa": "Ativo",
+        "ativo": "Ativo",
+        "closed": "Fechado",
+        "close": "Fechado",
+        "won": "Vitória",
+        "win": "Vitória",
+        "loss": "Derrota",
+        "lost": "Derrota",
+        "lose": "Derrota",
+        "draw": "Empate",
+        "equal": "Empate",
+        "n/a": "N/A",
+    }
+
+    return status_map.get(raw, str(status))
 
 
 def load_resultados() -> str:
@@ -179,6 +233,8 @@ def append_runtime_log(text: str) -> None:
 
 def format_dt_full(dt: Any) -> str:
     if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         return dt.strftime("%d-%m-%Y %H:%M:%S")
     return str(dt)
 
@@ -245,7 +301,7 @@ def _resultado_from_sources(calculated_profit: float, final_result: Any, win_res
         return "Derrota"
     if status in {"draw", "equal"}:
         return "Empate"
-    if status in {"ativo", "pendente"}:
+    if status in {"ativo", "ativa", "active", "opened", "open", "pendente", "pending"}:
         return "Pendente"
 
     if isinstance(win_result, dict):
@@ -281,8 +337,58 @@ def _resultado_from_sources(calculated_profit: float, final_result: Any, win_res
 
 
 # =========================
-# Fallback de saldo
+# Saldo inspirado no test.py
 # =========================
+def extract_balance_from_event_payload(data: Any) -> Optional[Dict[str, Any]]:
+    try:
+        if hasattr(data, "balance"):
+            return {
+                "balance": float(getattr(data, "balance")),
+                "currency": safe_text(getattr(data, "currency", "USD"), "USD"),
+                "is_demo": bool(getattr(data, "is_demo", True)),
+            }
+    except Exception:
+        pass
+
+    if isinstance(data, dict):
+        if "balance" in data:
+            try:
+                return {
+                    "balance": float(data.get("balance", 0)),
+                    "currency": safe_text(data.get("currency"), "USD"),
+                    "is_demo": bool(data.get("isDemo", data.get("is_demo", True))),
+                }
+            except Exception:
+                return None
+
+        message = data.get("message")
+        if isinstance(message, str):
+            try:
+                parsed = json.loads(message)
+                if isinstance(parsed, dict) and "balance" in parsed:
+                    return {
+                        "balance": float(parsed.get("balance", 0)),
+                        "currency": safe_text(parsed.get("currency"), "USD"),
+                        "is_demo": bool(parsed.get("isDemo", parsed.get("is_demo", True))),
+                    }
+            except Exception:
+                pass
+
+    if isinstance(data, str):
+        try:
+            parsed = json.loads(data)
+            if isinstance(parsed, dict) and "balance" in parsed:
+                return {
+                    "balance": float(parsed.get("balance", 0)),
+                    "currency": safe_text(parsed.get("currency"), "USD"),
+                    "is_demo": bool(parsed.get("isDemo", parsed.get("is_demo", True))),
+                }
+        except Exception:
+            pass
+
+    return None
+
+
 def _fallback_balance_from_client_cache(client: AsyncPocketOptionClient) -> Tuple[float, str]:
     balance_obj = getattr(client, "_balance", None)
     if balance_obj is not None:
@@ -303,21 +409,78 @@ def _fallback_balance_from_client_cache(client: AsyncPocketOptionClient) -> Tupl
     return 0.0, "USD"
 
 
-# =========================
-# Funções assíncronas de API
-# =========================
+async def wait_for_balance(client: Any, timeout: float = 12.0) -> Any:
+    started = time.time()
+    captured: Dict[str, Any] = {}
+
+    async def on_balance_event(data: Any) -> None:
+        parsed = extract_balance_from_event_payload(data)
+        if parsed:
+            captured.update(parsed)
+
+    async def on_message_event(data: Any) -> None:
+        parsed = extract_balance_from_event_payload(data)
+        if parsed:
+            captured.update(parsed)
+
+    try:
+        client.add_event_callback("balance_updated", on_balance_event)
+        client.add_event_callback("balance_data", on_balance_event)
+        client.add_event_callback("message_received", on_message_event)
+        client.add_event_callback("raw_message_received", on_message_event)
+        client.add_event_callback("raw_message", on_message_event)
+    except Exception:
+        pass
+
+    while time.time() - started < timeout:
+        try:
+            balance = await client.get_balance()
+            if balance:
+                return balance
+        except Exception:
+            pass
+
+        internal_balance = getattr(client, "_balance", None)
+        if internal_balance is not None:
+            return internal_balance
+
+        if captured:
+            return SimpleBalance(
+                balance=float(captured.get("balance", 0)),
+                currency=safe_text(captured.get("currency"), "USD"),
+                is_demo=bool(captured.get("is_demo", True)),
+            )
+
+        await asyncio.sleep(0.4)
+
+    fallback_balance, fallback_currency = _fallback_balance_from_client_cache(client)
+    if fallback_balance or fallback_currency:
+        return SimpleBalance(
+            balance=float(fallback_balance),
+            currency=str(fallback_currency),
+            is_demo=IS_DEMO,
+        )
+
+    raise RuntimeError("Saldo não ficou disponível após autenticação.")
+
+
 async def get_balance(client: AsyncPocketOptionClient) -> Tuple[float, str]:
     try:
-        balance = await client.get_balance()
+        balance = await wait_for_balance(client, timeout=12.0)
         return float(balance.balance), str(balance.currency)
     except Exception as e:
+        print(f"⚠️ Falha no saldo via API/eventos: {e}")
+
         fallback_balance, fallback_currency = _fallback_balance_from_client_cache(client)
-        print(f"⚠️  Falha no saldo via API: {e}")
         print(f"💾 Usando saldo em cache da sessão: ${fallback_balance} {fallback_currency}")
         append_runtime_log(f"Fallback saldo em cache após erro: {e}")
+
         return fallback_balance, fallback_currency
 
 
+# =========================
+# Funções assíncronas de API
+# =========================
 async def get_candles(client: AsyncPocketOptionClient, asset: str, timeframe: int):
     try:
         candles = await client.get_candles(asset=asset, timeframe=timeframe, count=PAST_CANDLES)
@@ -374,7 +537,7 @@ async def place_order(
             print(f"📤 Enviando Ordem Automática (Tentativa {attempt + 1}/{max_retries})")
             print(f" 💹 Ativo: {symbol}")
             print(f" 💵 Valor: ${amount}")
-            print(f" 🎯 Direção: {direction.name}")
+            print(f" 🎯 Direção: {direction_to_pt(direction)}")
             print(f" ⏱️  Duração: {duration} segundos")
 
             order = await client.place_order(
@@ -387,7 +550,7 @@ async def place_order(
             if order and not getattr(order, "error_message", None):
                 print("✅ Ordem Enviada com Sucesso!")
                 append_runtime_log(
-                    f"Ordem enviada com sucesso | ativo={symbol} valor={amount} direcao={direction.name} duracao={duration}"
+                    f"Ordem enviada com sucesso | ativo={symbol} valor={amount} direcao={direction_to_pt(direction)} duracao={duration}"
                 )
                 return order
 
@@ -412,7 +575,7 @@ async def check_order_result_with_timeout(client: AsyncPocketOptionClient, order
     except asyncio.TimeoutError:
         return None
     except Exception as e:
-        print(f"❌ Erro no resultado de Ordem de Verificação: {e}")
+        print(f"❌ Erro no resultado de Verificação da Ordem: {e}")
         append_runtime_log(f"Erro ao verificar resultado da ordem: {e}")
         return None
 
@@ -448,7 +611,7 @@ async def wait_for_expiry_and_check(
         if current_result is not None:
             final_result = current_result
             status_now = _extract_status_from_any(current_result).lower()
-            if status_now not in {"n/a", "ativa", "pendente"}:
+            if status_now not in {"n/a", "ativa", "ativo", "active", "opened", "open", "pendente", "pending"}:
                 break
 
         await asyncio.sleep(RESULT_POLL_INTERVAL_SEC)
@@ -461,6 +624,7 @@ async def wait_for_expiry_and_check(
         extra_elapsed = 0
         while extra_elapsed < max(5, RESULT_MAX_POLL_SEC):
             await asyncio.sleep(RESULT_POLL_INTERVAL_SEC)
+
             final_balance, _ = await get_balance(client)
             calculated_profit = round(final_balance - initial_balance, 2)
 
@@ -495,13 +659,13 @@ async def wait_for_expiry_and_check(
     if profit_from_result is not None:
         print(f"💹 Lucro reportado pela ordem: ${round(profit_from_result, 2)}")
     if status != "N/A":
-        print(f"📌 Status da ordem: {status}")
+        print(f"📌 Status da Ordem: {normalize_status_pt(status)}")
 
     resultado = _resultado_from_sources(calculated_profit, final_result, win_result)
     print(f"📊 Resultado Final: {resultado} (Lucro Real: ${calculated_profit})")
 
     append_runtime_log(
-        f"Resultado final | order_id={order_id} status={status} lucro={calculated_profit} resultado={resultado}"
+        f"Resultado final | order_id={order_id} status={normalize_status_pt(status)} lucro={calculated_profit} resultado={resultado}"
     )
     return final_result, win_result, calculated_profit
 
@@ -592,7 +756,7 @@ def print_operacao_registro(final_result: Any, win_result: Any, calculated_profi
     print("----------------------------------------")
     print(f"🏁 Resultado: {resultado} | 💹 Lucro Total: ${calculated_profit}")
     if status != "N/A":
-        print(f"📌 Status final registrado: {status}")
+        print(f"📌 Status Final Registrado: {normalize_status_pt(status)}")
 
     save_resultados(
         f"Lucro= ${calculated_profit}, Resultado= {resultado}, Ativo= {ASSET}, Conta= {'DEMO' if IS_DEMO else 'REAL'}"
@@ -640,8 +804,14 @@ async def main() -> None:
             if not success:
                 raise Exception("Reconexão falhou.")
 
-        initial_balance, moeda = await get_balance(client)
+        # Aqui está a mudança principal: usa a lógica do test.py
+        balance_obj = await wait_for_balance(client, timeout=12.0)
+        initial_balance = float(balance_obj.balance)
+        moeda = str(balance_obj.currency)
+
         print_saldo(initial_balance, moeda)
+        append_runtime_log(f"Saldo inicial obtido via wait_for_balance: {initial_balance} {moeda}")
+
     except Exception as e:
         print(f"❌ Falha ao obter saldo inicial: {e}")
         append_runtime_log(f"Falha ao obter saldo inicial: {e}")
