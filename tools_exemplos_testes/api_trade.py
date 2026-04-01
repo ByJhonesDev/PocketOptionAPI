@@ -37,192 +37,488 @@ Requisitos:
   - pocketoptionapi_async
 """
 
-from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+from __future__ import annotations
+
 import asyncio
-import pandas as pd
 import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional, Tuple
+
+import pandas as pd
+from dotenv import load_dotenv
+from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # =========================
-# Configurações Fixas
+# Carregamento de .env
 # =========================
-SSID_FIXO = '42["auth",{"session":"","isDemo":1,"uid":,"platform":2,"isFastHistory":true,"isOptimized":true}]'  # Substitua por SSID fresco gerado via get_ssid_demo.py
-LOGS_DIR = r'C:\JhonesProIABoT\Logs'  # Pasta onde os logs serão salvos
-RESULTADOS_FILE = os.path.join(LOGS_DIR, 'resultados_gerais_pkt.txt')
-ASSET = 'AUDCAD_otc'
-AMOUNT = 1000.0  # Valor da entrada (USD)
-DIRECTION = OrderDirection.CALL
-MAX_RETRIES = 3
+load_dotenv()
 
-# Cria diretório se não existir
-os.makedirs(LOGS_DIR, exist_ok=True)
+
+# =========================
+# Helpers de ambiente
+# =========================
+def env_str(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    return value.strip() if value is not None else default
+
+
+def env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        return default
+
+
+def env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return float(value.strip().replace(",", "."))
+    except ValueError:
+        return default
+
+
+def parse_account_mode(raw: str) -> str:
+    normalized = (raw or "").strip().lower()
+    if normalized in {"real", "live"}:
+        return "REAL"
+    if normalized in {"demo", "demonstracao", "demonstração", "demonstration", "demostracao", "demostração"}:
+        return "DEMO"
+    return "DEMO"
+
+
+def parse_order_direction(raw: str) -> OrderDirection:
+    normalized = (raw or "COMPRAR").strip().upper()
+    return OrderDirection.PUT if normalized == "PUT" else OrderDirection.CALL
+
+
+def parse_first_asset() -> str:
+    trade_asset = env_str("PO_TRADE_ASSET", "")
+    if trade_asset:
+        return trade_asset
+
+    assets_raw = env_str("PO_ASSETS", "")
+    if assets_raw:
+        first = assets_raw.split(",")[0].strip()
+        if first:
+            return first
+
+    return "EURUSD_otc"
+
+
+def parse_duration_seconds() -> int:
+    raw = env_str("PO_TIMEFRAMES", "1")
+    first = raw.split(",")[0].strip().lower().replace("m", "")
+    minutes = int(first) if first.isdigit() else 1
+    return max(5, minutes * 60)
+
+
+# =========================
+# Configurações vindas do .env
+# =========================
+ACCOUNT_MODE = parse_account_mode(env_str("PO_ACCOUNT_MODE", "DEMOSTRAÇÃO"))
+IS_DEMO = ACCOUNT_MODE == "DEMO"
+SSID_FIXO = env_str("POCKET_OPTION_SSID_DEMO" if IS_DEMO else "POCKET_OPTION_SSID_REAL")
+
+LOGS_DIR = env_str("LOG_DIR", r"C:\JhonesProIABoT\Corretora\Logs")
+PO_LOG_FILE = env_str("PO_LOG_FILE", os.path.join(LOGS_DIR, "jhones_pro_pocket_log.txt"))
+RESULTADOS_FILE = env_str(
+    "RESULTADOS_ARQUIVO_PKT",
+    os.path.join(LOGS_DIR, "resultados_gerais_pkt.txt"),
+)
+
+ASSET = parse_first_asset()
+AMOUNT = env_float("PO_TRADE_AMOUNT", 1.0)
+DIRECTION = parse_order_direction(env_str("PO_TRADE_DIRECTION", "COMPRAR"))
+DURATION = parse_duration_seconds()
+
+MAX_RETRIES = env_int("PO_MAX_RETRIES", 3)
+ORDER_RESULT_EXTRA_WAIT = env_int("PO_ORDER_RESULT_EXTRA_WAIT", 2)
+RESULT_FIRST_DELAY_SEC = env_int("PO_RESULT_FIRST_DELAY_SEC", 2)
+RESULT_MAX_POLL_SEC = env_int("PO_RESULT_MAX_POLL_SEC", 20)
+RESULT_POLL_INTERVAL_SEC = env_int("PO_RESULT_POLL_INTERVAL_SEC", 1)
+PAST_CANDLES = env_int("PO_PAST_CANDLES", 100)
+
+Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
+
 
 # =========================
 # Utilidades de Log / Formatação
 # =========================
-def bool_pt(v):
-    """Converte True/False para Sim/Não, preservando outros valores."""
-    if isinstance(v, bool):
-        return "Sim" if v else "Não"
-    return v
+def bool_pt(value: Any) -> Any:
+    if isinstance(value, bool):
+        return "Sim" if value else "Não"
+    return value
 
-def load_resultados():
-    """Carrega resultado anterior (última linha) para exibir no cabeçalho."""
+
+def load_resultados() -> str:
     if os.path.exists(RESULTADOS_FILE):
-        with open(RESULTADOS_FILE, 'r', encoding='utf-8') as f:
+        with open(RESULTADOS_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
             return lines[-1].strip() if lines else "Nenhum resultado anterior."
     return "Arquivo de resultados não encontrado."
 
-def save_resultados(resultado_str):
-    """Salva novo resultado no arquivo (append)."""
-    with open(RESULTADOS_FILE, 'a', encoding='utf-8') as f:
+
+def save_resultados(resultado_str: str) -> None:
+    with open(RESULTADOS_FILE, "a", encoding="utf-8") as f:
         timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         f.write(f"[{timestamp}] {resultado_str}\n")
     print(f"✅ Resultados salvos em: {RESULTADOS_FILE}")
 
-def get_resultado_final(calculated_profit, win_result, status):
-    """Determina Vitória/Derrota baseado no lucro calculado, win_result ou status."""
-    if calculated_profit > 0:
-        return "Vitória"
-    elif calculated_profit < 0:
-        return "Derrota"
-    elif status in ('won', 'win'):
-        return "Vitória"
-    elif status in ('loss', 'lost'):
-        return "Derrota"
-    elif status in ('active', 'pending'):
-        return "Pendente"
-    else:
-        # win_result pode ser numérico em algumas libs
-        try:
-            if win_result is not None:
-                if float(win_result) > 0:
-                    return "Vitória"
-                if float(win_result) < 0:
-                    return "Derrota"
-        except Exception:
-            pass
-        return "Empate/Indefinido"
 
-def format_dt_full(dt):
-    """Formata datetime para DD-MM-YYYY HH:MM:SS; aceita datetime ou texto."""
+def append_runtime_log(text: str) -> None:
+    timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    with open(PO_LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"[{timestamp}] {text}\n")
+
+
+def format_dt_full(dt: Any) -> str:
     if isinstance(dt, datetime):
         return dt.strftime("%d-%m-%Y %H:%M:%S")
     return str(dt)
 
+
+def mask_ssid(ssid: str) -> str:
+    if not ssid:
+        return "NÃO CONFIGURADO"
+    if len(ssid) <= 16:
+        return "***"
+    return f"{ssid[:10]}...{ssid[-10:]}"
+
+
+def _extract_status_from_any(obj: Any) -> str:
+    if obj is None:
+        return "N/A"
+
+    if isinstance(obj, dict):
+        status = obj.get("status") or obj.get("result") or obj.get("state")
+        return str(status) if status is not None else "N/A"
+
+    status = getattr(obj, "status", None)
+    if status is None:
+        return "N/A"
+
+    value = getattr(status, "value", status)
+    return str(value)
+
+
+def _extract_profit_from_any(obj: Any) -> Optional[float]:
+    if obj is None:
+        return None
+
+    keys = ("profit", "payout", "win", "amount")
+    if isinstance(obj, dict):
+        for key in keys:
+            if key in obj and obj[key] not in (None, ""):
+                try:
+                    return float(obj[key])
+                except Exception:
+                    pass
+        return None
+
+    for key in keys:
+        value = getattr(obj, key, None)
+        if value not in (None, ""):
+            try:
+                return float(value)
+            except Exception:
+                pass
+
+    return None
+
+
+def _resultado_from_sources(calculated_profit: float, final_result: Any, win_result: Any) -> str:
+    if calculated_profit > 0:
+        return "Vitória"
+    if calculated_profit < 0:
+        return "Derrota"
+
+    status = _extract_status_from_any(final_result).lower()
+    if status in {"won", "win"}:
+        return "Vitória"
+    if status in {"loss", "lost", "lose"}:
+        return "Derrota"
+    if status in {"draw", "equal"}:
+        return "Empate"
+    if status in {"ativo", "pendente"}:
+        return "Pendente"
+
+    if isinstance(win_result, dict):
+        result = str(win_result.get("result", "")).lower()
+        if result == "win":
+            return "Vitória"
+        if result == "loss":
+            return "Derrota"
+        if result == "draw":
+            return "Empate"
+
+        profit = win_result.get("profit")
+        if profit not in (None, ""):
+            try:
+                if float(profit) > 0:
+                    return "Vitória"
+                if float(profit) < 0:
+                    return "Derrota"
+            except Exception:
+                pass
+
+    try:
+        if win_result is not None:
+            numeric = float(win_result)
+            if numeric > 0:
+                return "Vitória"
+            if numeric < 0:
+                return "Derrota"
+    except Exception:
+        pass
+
+    return "Empate/Indefinido"
+
+
+# =========================
+# Fallback de saldo
+# =========================
+def _fallback_balance_from_client_cache(client: AsyncPocketOptionClient) -> Tuple[float, str]:
+    balance_obj = getattr(client, "_balance", None)
+    if balance_obj is not None:
+        try:
+            return float(balance_obj.balance), str(balance_obj.currency)
+        except Exception:
+            pass
+
+    account_config = getattr(client, "_account_config", {}) or {}
+    balance = account_config.get("balance")
+    currency = account_config.get("currency", "USD")
+    if balance is not None:
+        try:
+            return float(balance), str(currency)
+        except Exception:
+            pass
+
+    return 0.0, "USD"
+
+
 # =========================
 # Funções assíncronas de API
 # =========================
-async def get_balance(client):
+async def get_balance(client: AsyncPocketOptionClient) -> Tuple[float, str]:
     try:
         balance = await client.get_balance()
-        return balance.balance, balance.currency
+        return float(balance.balance), str(balance.currency)
     except Exception as e:
-        print(f"❌ Erro ao obter Saldo: {e}")
-        return 0.0, 'USD'
+        fallback_balance, fallback_currency = _fallback_balance_from_client_cache(client)
+        print(f"⚠️  Falha no saldo via API: {e}")
+        print(f"💾 Usando saldo em cache da sessão: ${fallback_balance} {fallback_currency}")
+        append_runtime_log(f"Fallback saldo em cache após erro: {e}")
+        return fallback_balance, fallback_currency
 
-async def get_candles(client, asset=ASSET, timeframe=60):
+
+async def get_candles(client: AsyncPocketOptionClient, asset: str, timeframe: int):
     try:
-        candles = await client.get_candles(asset=asset, timeframe=timeframe)
+        candles = await client.get_candles(asset=asset, timeframe=timeframe, count=PAST_CANDLES)
         if candles:
-            ultima_vela = candles[0]  # geralmente a mais recente
+            ultima_vela = candles[-1]
             return len(candles), ultima_vela
         return 0, None
     except Exception as e:
         print(f"❌ Erro ao obter Velas: {e}")
+        append_runtime_log(f"Erro ao obter velas: {e}")
         return 0, None
 
-async def get_candles_dataframe(client, asset=ASSET, timeframe=60):
+
+async def get_candles_dataframe(
+    client: AsyncPocketOptionClient,
+    asset: str,
+    timeframe: int,
+) -> pd.DataFrame:
     try:
-        df = await client.get_candles_dataframe(asset=asset, timeframe=timeframe)
-        return df
+        return await client.get_candles_dataframe(asset=asset, timeframe=timeframe, count=PAST_CANDLES)
     except Exception as e:
         print(f"❌ Erro ao obter DataFrame de Velas: {e}")
+        append_runtime_log(f"Erro ao obter DataFrame de velas: {e}")
         return pd.DataFrame()
 
-async def get_active_orders(client):
+
+async def get_active_orders(client: AsyncPocketOptionClient):
     try:
-        orders = await client.get_active_orders()
-        return orders
+        return await client.get_active_orders()
     except Exception as e:
         print(f"❌ Erro ao obter Ordens Ativas: {e}")
+        append_runtime_log(f"Erro ao obter ordens ativas: {e}")
         return []
 
-async def place_order(client, symbol=ASSET, amount=AMOUNT, direction=DIRECTION, duration=DURATION, max_retries=MAX_RETRIES):
+
+async def place_order(
+    client: AsyncPocketOptionClient,
+    symbol: Optional[str] = None,
+    amount: Optional[float] = None,
+    direction: Optional[OrderDirection] = None,
+    duration: Optional[int] = None,
+    max_retries: Optional[int] = None,
+):
+    symbol = symbol or ASSET
+    amount = amount if amount is not None else AMOUNT
+    direction = direction or DIRECTION
+    duration = duration if duration is not None else DURATION
+    max_retries = max_retries if max_retries is not None else MAX_RETRIES
+
     for attempt in range(max_retries):
         try:
             print("\n🚀 Operações Automáticas")
             print("----------------------------------------")
-            print(f"📤 Enviando Ordem Automática (Tentativa {attempt+1}/{max_retries})")
+            print(f"📤 Enviando Ordem Automática (Tentativa {attempt + 1}/{max_retries})")
             print(f" 💹 Ativo: {symbol}")
             print(f" 💵 Valor: ${amount}")
             print(f" 🎯 Direção: {direction.name}")
-            print(f" ⏱️ Duração: {duration} Segundos")
-            order = await client.place_order(asset=symbol, amount=amount, direction=direction, duration=duration)
-            if order and not getattr(order, 'error_message', None):
+            print(f" ⏱️  Duração: {duration} segundos")
+
+            order = await client.place_order(
+                asset=symbol,
+                amount=amount,
+                direction=direction,
+                duration=duration,
+            )
+
+            if order and not getattr(order, "error_message", None):
                 print("✅ Ordem Enviada com Sucesso!")
+                append_runtime_log(
+                    f"Ordem enviada com sucesso | ativo={symbol} valor={amount} direcao={direction.name} duracao={duration}"
+                )
                 return order
-            else:
-                error_msg = getattr(order, 'error_message', 'Erro desconhecido')
-                print(f"⚠️ Tentativa {attempt+1} falhou: {error_msg}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2)
+
+            error_msg = getattr(order, "error_message", "Erro desconhecido")
+            print(f"⚠️ Tentativa {attempt + 1} falhou: {error_msg}")
+            append_runtime_log(f"Tentativa de ordem falhou: {error_msg}")
+
         except Exception as e:
-            print(f"❌ Erro na tentativa {attempt+1}: {e}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(2)
+            print(f"❌ Erro na tentativa {attempt + 1}: {e}")
+            append_runtime_log(f"Erro ao enviar ordem na tentativa {attempt + 1}: {e}")
+
+        if attempt < max_retries - 1:
+            await asyncio.sleep(2)
+
     print("❌ Todas as tentativas de envio falharam.")
     return None
 
-async def check_order_result_with_timeout(client, order_id, timeout=30):
+
+async def check_order_result_with_timeout(client: AsyncPocketOptionClient, order_id: str, timeout: int = 30):
     try:
-        result = await asyncio.wait_for(client.check_order_result(order_id), timeout=timeout)
-        return result
+        return await asyncio.wait_for(client.check_order_result(order_id), timeout=timeout)
     except asyncio.TimeoutError:
-        print("⏰ Tempo limite sem resultado de Ordem de Verificação.")
         return None
     except Exception as e:
         print(f"❌ Erro no resultado de Ordem de Verificação: {e}")
+        append_runtime_log(f"Erro ao verificar resultado da ordem: {e}")
         return None
 
-async def wait_for_expiry_and_check(client, order_id, initial_balance, duration=DURATION):
-    """Espera expirar + buffer, checa resultado e calcula lucro via diferença de saldo."""
-    buffer_s = 30
-    print(f"⏳ Aguardando Expiração da Negociação ({duration + buffer_s}s)...")
-    await asyncio.sleep(duration + buffer_s)
+
+async def wait_for_expiry_and_check(
+    client: AsyncPocketOptionClient,
+    order_id: str,
+    initial_balance: float,
+    duration: Optional[int] = None,
+):
+    duration = duration if duration is not None else DURATION
+
+    if RESULT_FIRST_DELAY_SEC > 0:
+        print(f"⏳ Esperando {RESULT_FIRST_DELAY_SEC}s antes da primeira checagem...")
+        await asyncio.sleep(RESULT_FIRST_DELAY_SEC)
+
+    wait_total = duration + ORDER_RESULT_EXTRA_WAIT
+    print(f"⏳ Aguardando expiração da negociação ({wait_total}s)...")
+    await asyncio.sleep(wait_total)
+
     print("🔄 Verificando Resultado Final...")
-    final_result = await check_order_result_with_timeout(client, order_id)
-    win_result = None
-    try:
-        win_result = await asyncio.wait_for(client.check_win(order_id), timeout=30)
-        if win_result is not None:
-            print(f"🏁 Verificação de Win concluída: {win_result}")
-    except asyncio.TimeoutError:
-        print("⏰ Tempo limite, nenhuma verificação de ganho.")
-    except Exception as e:
-        print(f"❌ Erro no check_win: {e}")
-    # Calcula lucro real via variação de saldo
+
+    final_result = None
+    elapsed = 0
+
+    while elapsed < RESULT_MAX_POLL_SEC:
+        current_result = await check_order_result_with_timeout(
+            client,
+            order_id,
+            timeout=RESULT_POLL_INTERVAL_SEC + 1,
+        )
+
+        if current_result is not None:
+            final_result = current_result
+            status_now = _extract_status_from_any(current_result).lower()
+            if status_now not in {"n/a", "ativa", "pendente"}:
+                break
+
+        await asyncio.sleep(RESULT_POLL_INTERVAL_SEC)
+        elapsed += RESULT_POLL_INTERVAL_SEC
+
     final_balance, _ = await get_balance(client)
     calculated_profit = round(final_balance - initial_balance, 2)
-    print(f"💰 Saldo: Inicial=${initial_balance} | Final=${final_balance} | Lucro/Prejuízo=${calculated_profit}")
-    status = getattr(final_result, 'status', 'N/A') if final_result else 'N/A'
-    resultado = get_resultado_final(calculated_profit, win_result, status)
+
+    if abs(calculated_profit) < 0.01:
+        extra_elapsed = 0
+        while extra_elapsed < max(5, RESULT_MAX_POLL_SEC):
+            await asyncio.sleep(RESULT_POLL_INTERVAL_SEC)
+            final_balance, _ = await get_balance(client)
+            calculated_profit = round(final_balance - initial_balance, 2)
+
+            current_result = await check_order_result_with_timeout(
+                client,
+                order_id,
+                timeout=RESULT_POLL_INTERVAL_SEC + 1,
+            )
+            if current_result is not None:
+                final_result = current_result
+
+            status_now = _extract_status_from_any(final_result).lower()
+            if abs(calculated_profit) >= 0.01 or status_now in {"won", "win", "loss", "lost", "lose", "draw"}:
+                break
+
+            extra_elapsed += RESULT_POLL_INTERVAL_SEC
+
+    win_result = None
+    try:
+        win_result = await asyncio.wait_for(
+            client.check_win(order_id),
+            timeout=max(5, RESULT_MAX_POLL_SEC),
+        )
+    except Exception as e:
+        append_runtime_log(f"check_win indisponível/ignorado: {e}")
+
+    print(f"💰 Saldo: Inicial= ${initial_balance} | Final= ${final_balance} | Lucro/Prejuízo= ${calculated_profit}")
+
+    status = _extract_status_from_any(final_result)
+    profit_from_result = _extract_profit_from_any(final_result)
+
+    if profit_from_result is not None:
+        print(f"💹 Lucro reportado pela ordem: ${round(profit_from_result, 2)}")
+    if status != "N/A":
+        print(f"📌 Status da ordem: {status}")
+
+    resultado = _resultado_from_sources(calculated_profit, final_result, win_result)
     print(f"📊 Resultado Final: {resultado} (Lucro Real: ${calculated_profit})")
+
+    append_runtime_log(
+        f"Resultado final | order_id={order_id} status={status} lucro={calculated_profit} resultado={resultado}"
+    )
     return final_result, win_result, calculated_profit
 
-def get_connection_stats(client):
+
+def get_connection_stats(client: AsyncPocketOptionClient):
     try:
-        stats = client.get_connection_stats()
-        return stats
+        return client.get_connection_stats()
     except Exception as e:
         print(f"❌ Erro nas estatísticas de conexão: {e}")
+        append_runtime_log(f"Erro nas estatísticas de conexão: {e}")
         return {}
 
+
 # =========================
-# Impressão do Log (Formato PT-BR com Emojis)
+# Impressão do Log
 # =========================
-def print_header():
+def print_header() -> None:
     print("🤖 Bem-vindos ao JhonesProIA 🤖")
     print("🟢 Inicializando JhonesProPocketBoT...")
     print("✅ JhonesProPocketBoT e API PocketOption inicializados com sucesso!\n")
@@ -230,28 +526,28 @@ def print_header():
     print("----------------------------------------")
     prev_result = load_resultados()
     print(f"📂 Resultados carregados de: {RESULTADOS_FILE}")
-    # Se a última linha já incluir timestamp, mantenha como está; caso contrário, apresente simples:
     print(f"{prev_result}\n")
     print("🔐 Autenticação e Conexão")
     print("----------------------------------------")
-    print(f"🔑 SSID Utilizado: CONTA DEMO")
+    print(f"🔑 Conta selecionada: {'DEMO' if IS_DEMO else 'REAL'}")
+    print(f"🧾 SSID: {mask_ssid(SSID_FIXO)}")
     print("🌐 Conectando à PocketOption...")
-    print("✅ Conectado com Sucesso!")
 
-def print_saldo(saldo, moeda):
+
+def print_saldo(saldo: float, moeda: str) -> None:
     print(f"💰 Saldo Atual: ${saldo} {moeda}")
 
-def print_dados_mercado(total_candles, ultima_vela):
+
+def print_dados_mercado(total_candles: int, ultima_vela: Any) -> None:
     print("\n📊 Dados de Mercado")
     print("----------------------------------------")
     print(f"🔢 Total de Velas: {total_candles}")
     if ultima_vela:
-        # Algumas libs usam atributos diferentes; ajuste se necessário
-        o = getattr(ultima_vela, 'open', None)
-        c = getattr(ultima_vela, 'close', None)
-        h = getattr(ultima_vela, 'high', None)
-        l = getattr(ultima_vela, 'low', None)
-        ts = getattr(ultima_vela, 'timestamp', None)
+        o = getattr(ultima_vela, "open", None)
+        c = getattr(ultima_vela, "close", None)
+        h = getattr(ultima_vela, "high", None)
+        l = getattr(ultima_vela, "low", None)
+        ts = getattr(ultima_vela, "timestamp", None)
         print("🕯️ Informações da Última Vela:")
         print(f" 📈 Abertura: {o}")
         print(f" 📉 Fechamento: {c}")
@@ -259,101 +555,136 @@ def print_dados_mercado(total_candles, ultima_vela):
         print(f" ⤵️ Mínima: {l}")
         print(f" 🕒 Horário: {ts}")
 
-def print_stats(stats):
+
+def print_stats(stats: dict) -> None:
     print("\n📡 Estatísticas de Conexão")
     print("----------------------------------------")
     if not stats:
         print("❌ Sem estatísticas disponíveis.")
         return
-    total_connections = stats.get('total_connections', 'N/A')
-    successful_connections = stats.get('successful_connections', 'N/A')
-    total_reconnects = stats.get('total_reconnects', 'N/A')
-    last_ping_time = stats.get('last_ping_time', 'N/A')
-    messages_sent = stats.get('messages_sent', 'N/A')
-    messages_received = stats.get('messages_received', 'N/A')
-    websocket_connected = bool_pt(stats.get('websocket_connected', 'N/A'))
-    conn_info = stats.get('connection_info')
-    connected_at = getattr(conn_info, 'connected_at', 'N/A') if conn_info else 'N/A'
-    region = getattr(conn_info, 'region', 'N/A') if conn_info else 'N/A'
+
+    total_connections = stats.get("total_connections", "N/A")
+    successful_connections = stats.get("successful_connections", "N/A")
+    total_reconnects = stats.get("total_reconnects", "N/A")
+    last_ping_time = stats.get("last_ping_time", "N/A")
+    messages_sent = stats.get("messages_sent", stats.get("total_messages_sent", "N/A"))
+    messages_received = stats.get("messages_received", stats.get("total_messages_received", "N/A"))
+    websocket_connected = bool_pt(stats.get("websocket_connected", stats.get("is_connected", "N/A")))
+    conn_info = stats.get("connection_info")
+    connected_at = getattr(conn_info, "connected_at", "N/A") if conn_info else "N/A"
+    region = getattr(conn_info, "region", stats.get("current_region", "N/A")) if conn_info else stats.get("current_region", "N/A")
+
     print(f"🔗 Conexões Totais: {total_connections}")
     print(f"✅ Conexões Bem-Sucedidas: {successful_connections}")
-    print(f"♻️ Total de Reconexões: {total_reconnects}")
+    print(f"♻️  Total de Reconexões: {total_reconnects}")
     print(f"🕒 Horário do Último Ping: {last_ping_time}")
-    print(f"✉️ Mensagens Enviadas/Recebidas: {messages_sent}/{messages_received}")
+    print(f"✉️  Mensagens Enviadas/Recebidas: {messages_sent}/{messages_received}")
     print(f"🌐 WebSocket Conectado: {websocket_connected}")
     print(f"📅 Conectado em: {format_dt_full(connected_at)}")
     print(f"🌍 Região: {region}")
 
-def print_operacao_registro(final_result, win_result, calculated_profit):
-    status = getattr(final_result, 'status', 'N/A') if final_result else 'N/A'
-    resultado = get_resultado_final(calculated_profit, win_result, status)
-    print(f"\n📈 Registro da Operação")
+
+def print_operacao_registro(final_result: Any, win_result: Any, calculated_profit: float) -> None:
+    resultado = _resultado_from_sources(calculated_profit, final_result, win_result)
+    status = _extract_status_from_any(final_result)
+
+    print("\n📈 Registro da Operação")
     print("----------------------------------------")
     print(f"🏁 Resultado: {resultado} | 💹 Lucro Total: ${calculated_profit}")
-    save_resultados(f"Lucro= ${calculated_profit}, Resultado= {resultado}")
+    if status != "N/A":
+        print(f"📌 Status final registrado: {status}")
 
-def print_footer():
+    save_resultados(
+        f"Lucro= ${calculated_profit}, Resultado= {resultado}, Ativo= {ASSET}, Conta= {'DEMO' if IS_DEMO else 'REAL'}"
+    )
+
+
+def print_footer() -> None:
     print("\n🔚 Finalização")
     print("----------------------------------------")
     print("🔌 Desconectando...")
     print("✅ Conexão Encerrada com Sucesso.")
 
+
 # =========================
 # Fluxo Principal
 # =========================
-async def main():
+async def main() -> None:
     print_header()
-    # Cliente com DEMO habilitado e logging interno desativado (logs customizados nossos)
-    client = AsyncPocketOptionClient(SSID_FIXO, is_demo=True, enable_logging=False)
-    # Conexão com verificação
+
+    if not SSID_FIXO:
+        print("❌ SSID não encontrado no .env.")
+        print("🔍 Verifique POCKET_OPTION_SSID_DEMO / POCKET_OPTION_SSID_REAL e PO_ACCOUNT_MODE.")
+        return
+
+    client = AsyncPocketOptionClient(SSID_FIXO, is_demo=IS_DEMO, enable_logging=False)
+
     try:
         success = await client.connect()
         if not success:
             raise Exception("Conexão falhou após tentativa.")
-        # Verificação adicional se is_connected existir como atributo bool
-        if hasattr(client, 'is_connected') and not client.is_connected:
+        if hasattr(client, "is_connected") and not client.is_connected:
             raise Exception("Conexão reportada como inativa após connect.")
         print("✅ Conectado com Sucesso!")
+        append_runtime_log(f"Conectado com sucesso | conta={'DEMO' if IS_DEMO else 'REAL'}")
     except Exception as e:
         print(f"❌ Erro na conexão: {e}")
-        print(f"🔍 Dica: Verifique o SSID, rede ou biblioteca. SSID usado: {SSID_FIXO}")
+        print("🔍 Dica: Verifique o SSID, rede ou biblioteca.")
+        append_runtime_log(f"Erro na conexão: {e}")
         return
-    # Saldo inicial (com tentativa de reconexão se necessário)
+
     try:
-        if hasattr(client, 'is_connected') and not client.is_connected:
+        if hasattr(client, "is_connected") and not client.is_connected:
             print("♻️ Tentando reconectar...")
             success = await client.connect()
             if not success:
                 raise Exception("Reconexão falhou.")
+
         initial_balance, moeda = await get_balance(client)
         print_saldo(initial_balance, moeda)
     except Exception as e:
         print(f"❌ Falha ao obter saldo inicial: {e}")
+        append_runtime_log(f"Falha ao obter saldo inicial: {e}")
         await client.disconnect()
         return
-    # Dados de mercado
-    total_candles, ultima_vela = await get_candles(client)
+
+    total_candles, ultima_vela = await get_candles(client, asset=ASSET, timeframe=DURATION)
     print_dados_mercado(total_candles, ultima_vela)
-    # (Opcional) DataFrame completo — não exibimos para não poluir o log
-    _ = await get_candles_dataframe(client)
-    # (Opcional) Ordens ativas — não exibidas
+
+    _ = await get_candles_dataframe(client, asset=ASSET, timeframe=DURATION)
     _ = await get_active_orders(client)
-    # Estatísticas de conexão
+
     stats = get_connection_stats(client)
     print_stats(stats)
-    # Envio da ordem
-    order = await place_order(client)
+
+    order = await place_order(
+        client,
+        symbol=ASSET,
+        amount=AMOUNT,
+        direction=DIRECTION,
+        duration=DURATION,
+        max_retries=MAX_RETRIES,
+    )
+
     if order:
-        order_id = getattr(order, 'order_id', None) or getattr(order, 'id', None)
-        final_result, win_result, calculated_profit = await wait_for_expiry_and_check(client, order_id, initial_balance)
+        order_id = getattr(order, "order_id", None) or getattr(order, "id", None)
+        print(f"🆔 ID da ordem: {order_id}")
+
+        final_result, win_result, calculated_profit = await wait_for_expiry_and_check(
+            client,
+            order_id,
+            initial_balance,
+            duration=DURATION,
+        )
         print_operacao_registro(final_result, win_result, calculated_profit)
     else:
         print("\n🚀 Operações Automáticas")
         print("----------------------------------------")
         print("❌ Nenhuma ordem enviada.")
-    # Finalização
+
     print_footer()
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
